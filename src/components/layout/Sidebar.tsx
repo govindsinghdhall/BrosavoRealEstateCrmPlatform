@@ -37,7 +37,7 @@ const NAV_ITEMS = [
   { label: 'Property Owners', path: '/properties/owners', icon: PersonSearchOutlinedIcon },
   { label: 'Site Visits', path: '/site-visits', icon: EventAvailableOutlinedIcon },
   { label: 'Bookings', path: '/bookings', icon: BookOnlineOutlinedIcon },
-  { label: 'Marketing', path: '/bookings/marketing', icon: CampaignOutlinedIcon },
+  { label: 'Marketing', path: '/marketing', icon: CampaignOutlinedIcon },
   { label: 'Users', path: '/users', icon: GroupOutlinedIcon },
   { label: 'Reports', path: '/reports', icon: AssessmentOutlinedIcon },
 ]

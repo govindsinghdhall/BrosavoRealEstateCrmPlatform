@@ -7,7 +7,7 @@ export const STORAGE_KEYS = {
 } as const
 
 export const POWERED_BY_URL = 'https://brisavo.com'
-export const POWERED_BY_LABEL = 'Brisavo.com'
+export const POWERED_BY_LABEL = 'Brosavo.com'
 
 export const LEAD_STATUSES = [
   'NEW',
