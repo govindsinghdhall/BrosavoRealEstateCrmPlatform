@@ -43,7 +43,7 @@ function MarketingHubSkeleton() {
 export function MarketingHubPage() {
   const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [tab, setTab] = useState<MarketingTabId>('google')
+  const [tab, setTab] = useState<MarketingTabId>('whatsapp')
   const [toast, setToast] = useState<{ message: string; severity: 'success' | 'error' | 'info' } | null>(null)
 
   const dashboardQuery = useQuery({
@@ -175,6 +175,14 @@ export function MarketingHubPage() {
             using the rest of your CRM.
           </Typography>
           <Box display="flex" gap={1.5} flexWrap="wrap">
+            
+            <Button
+              variant="outlined"
+              startIcon={<MessageCircle size={16} />}
+              onClick={() => setTab('whatsapp')}
+            >
+              1. Set up WhatsApp
+            </Button>
             <Button
               variant="contained"
               startIcon={<Link2 size={16} />}
@@ -184,14 +192,7 @@ export function MarketingHubPage() {
               }}
               disabled={connectMutation.isPending}
             >
-              1. Connect Google Business
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<MessageCircle size={16} />}
-              onClick={() => setTab('whatsapp')}
-            >
-              2. Set up WhatsApp
+              2. Connect Google Business
             </Button>
           </Box>
         </MarketingCard>
