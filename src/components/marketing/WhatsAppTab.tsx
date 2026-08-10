@@ -3,79 +3,110 @@ import {
   Box,
   Button,
   Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   IconButton,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableRow,
-  TextField,
   Typography,
 } from '@mui/material'
 import { MoreHorizontal, Plus } from 'lucide-react'
 import { format } from 'date-fns'
-import { useMutation } from '@tanstack/react-query'
-import type { CampaignStatus, WhatsAppCampaign } from '@/types/marketing'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { MarketingCard, MarketingSection } from './MarketingCard'
-import { WhatsAppConfiguration } from './WhatsAppConfiguration'
-import { marketingService } from '@/api/services'
-import { getErrorMessage } from '@/api/client'
+import { whatsappService } from '@/api/services/whatsapp.service'
 import { EmptyState } from '@/components/common/EmptyState'
 import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined'
+import { WhatsAppCampaignDrawer } from '@/components/whatsapp/WhatsAppCampaignDrawer'
 
-const statusColor: Record<CampaignStatus, 'default' | 'info' | 'warning' | 'success' | 'error'> = {
+const statusColor: Record<
+  string,
+  'default' | 'info' | 'warning' | 'success' | 'error'
+> = {
   draft: 'default',
-  scheduled: 'info',
-  sending: 'warning',
-  sent: 'success',
-  paused: 'error',
-  cancelled: 'default',
+  queued: 'info',
+  running: 'warning',
+  completed: 'success',
+  cancelled: 'error',
+  failed: 'error',
+}
+
+const statusLabels: Record<string, string> = {
+  draft: 'Draft',
+  queued: 'Queued',
+  running: 'Running',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+  failed: 'Failed',
 }
 
 interface WhatsAppTabProps {
-  campaigns: WhatsAppCampaign[]
+  campaigns?: any[]
   loadingCampaigns?: boolean
   onCampaignCreated?: () => void
 }
 
-export function WhatsAppTab({ campaigns, loadingCampaigns, onCampaignCreated }: WhatsAppTabProps) {
-  const [open, setOpen] = useState(false)
-  const [form, setForm] = useState({
-    campaignName: '',
-    audience: '',
-    campaignType: 'broadcast',
-  })
-  const [error, setError] = useState('')
+export function WhatsAppTab({
+  campaigns = [],
+  loadingCampaigns,
+  onCampaignCreated,
+}: WhatsAppTabProps) {
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const queryClient = useQueryClient()
 
-  const createMutation = useMutation({
-    mutationFn: () =>
-      marketingService.createCampaign({
-        campaignName: form.campaignName,
-        audience: form.audience,
-        campaignType: form.campaignType,
-        provider: 'whatsapp',
-      }),
-    onSuccess: () => {
-      setOpen(false)
-      setForm({ campaignName: '', audience: '', campaignType: 'broadcast' })
-      onCampaignCreated?.()
-    },
-    onError: (err) => setError(getErrorMessage(err)),
+  // Check WhatsApp connection status.
+  // The actual connection/settings UI will live in
+  // the new WhatsApp Settings page.
+  const { data: settings } = useQuery({
+    queryKey: ['whatsapp-settings'],
+    queryFn: () => whatsappService.getSettings(),
   })
+
+  if (!settings?.isConnected) {
+    return (
+      <MarketingSection title="WhatsApp Campaigns">
+        <MarketingCard hover={false}>
+          <Box
+            sx={{
+              py: 6,
+              textAlign: 'center',
+            }}
+          >
+            <Typography
+              variant="h6"
+              fontWeight={700}
+              gutterBottom
+            >
+              WhatsApp is not connected
+            </Typography>
+
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ maxWidth: 480, mx: 'auto' }}
+            >
+              Connect your WhatsApp Business account from
+              WhatsApp Settings before creating campaigns.
+            </Typography>
+          </Box>
+        </MarketingCard>
+      </MarketingSection>
+    )
+  }
 
   return (
     <Box>
-      <WhatsAppConfiguration />
-
       <MarketingSection
-        title="Campaigns"
+        title="WhatsApp Campaigns"
         action={
-          <Button variant="contained" startIcon={<Plus size={16} />} size="small" onClick={() => setOpen(true)}>
-            Create Campaign
+          <Button
+            variant="contained"
+            startIcon={<Plus size={16} />}
+            size="small"
+            onClick={() => setDrawerOpen(true)}
+          >
+            New Campaign
           </Button>
         }
       >
@@ -84,9 +115,13 @@ export function WhatsAppTab({ campaigns, loadingCampaigns, onCampaignCreated }: 
             <EmptyState
               icon={CampaignOutlinedIcon}
               title="No campaigns yet"
-              description="Create your first WhatsApp campaign when you are ready to message a group of contacts. Start with a clear name and audience so your team knows what it is for."
+              description="Create your first WhatsApp campaign to send bulk messages to your contacts using approved Meta templates."
               action={
-                <Button variant="contained" startIcon={<Plus size={16} />} onClick={() => setOpen(true)}>
+                <Button
+                  variant="contained"
+                  startIcon={<Plus size={16} />}
+                  onClick={() => setDrawerOpen(true)}
+                >
                   Create Campaign
                 </Button>
               }
@@ -97,54 +132,157 @@ export function WhatsAppTab({ campaigns, loadingCampaigns, onCampaignCreated }: 
                 <TableHead>
                   <TableRow>
                     <TableCell>Campaign</TableCell>
-                    <TableCell>Audience</TableCell>
                     <TableCell>Status</TableCell>
+                    <TableCell>Progress</TableCell>
+                    <TableCell>Stats</TableCell>
                     <TableCell>Scheduled</TableCell>
-                    <TableCell align="right">Sent</TableCell>
-                    <TableCell align="right">Actions</TableCell>
+                    <TableCell align="right">
+                      Actions
+                    </TableCell>
                   </TableRow>
                 </TableHead>
+
                 <TableBody>
-                  {campaigns.map((campaign) => (
-                    <TableRow key={String(campaign.id)} hover>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight={650}>
-                          {campaign.campaignName}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="text.secondary">
-                          {campaign.audience}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          size="small"
-                          label={campaign.status}
-                          color={statusColor[campaign.status]}
-                          variant="outlined"
-                          sx={{ textTransform: 'capitalize', fontWeight: 600 }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="text.secondary">
-                          {campaign.scheduleAt
-                            ? format(new Date(campaign.scheduleAt), 'dd MMM yyyy, HH:mm')
-                            : '—'}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography variant="body2" fontWeight={600}>
-                          {(campaign.statistics?.sent ?? 0).toLocaleString()}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <IconButton size="small" aria-label="Campaign actions">
-                          <MoreHorizontal size={16} />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {campaigns.map((campaign) => {
+                    const progress =
+                      campaign.stats?.total > 0
+                        ? ((campaign.stats.sent +
+                            campaign.stats.failed) /
+                            campaign.stats.total) *
+                          100
+                        : 0
+
+                    return (
+                      <TableRow
+                        key={String(campaign.id)}
+                        hover
+                      >
+                        <TableCell>
+                          <Typography
+                            variant="body2"
+                            fontWeight={650}
+                          >
+                            {campaign.name}
+                          </Typography>
+                        </TableCell>
+
+                        <TableCell>
+                          <Chip
+                            size="small"
+                            label={
+                              statusLabels[campaign.status] ||
+                              campaign.status
+                            }
+                            color={
+                              statusColor[campaign.status] ||
+                              'default'
+                            }
+                            variant="outlined"
+                            sx={{
+                              textTransform: 'capitalize',
+                              fontWeight: 600,
+                            }}
+                          />
+                        </TableCell>
+
+                        <TableCell sx={{ minWidth: 120 }}>
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 1,
+                            }}
+                          >
+                            <Box
+                              sx={{
+                                flex: 1,
+                                bgcolor: 'grey.200',
+                                borderRadius: 1,
+                                height: 6,
+                              }}
+                            >
+                              <Box
+                                sx={{
+                                  width: `${Math.min(
+                                    100,
+                                    Math.round(progress),
+                                  )}%`,
+                                  bgcolor: 'primary.main',
+                                  borderRadius: 1,
+                                  height: 6,
+                                }}
+                              />
+                            </Box>
+
+                            <Typography variant="caption">
+                              {Math.round(progress)}%
+                            </Typography>
+                          </Box>
+
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                          >
+                            {campaign.stats?.sent || 0} of{' '}
+                            {campaign.stats?.total || 0}
+                          </Typography>
+                        </TableCell>
+
+                        <TableCell>
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              gap: 0.5,
+                              flexWrap: 'wrap',
+                            }}
+                          >
+                            <Chip
+                              size="small"
+                              label={`${campaign.stats?.sent || 0} sent`}
+                              color="info"
+                            />
+
+                            <Chip
+                              size="small"
+                              label={`${campaign.stats?.delivered || 0} delivered`}
+                              color="success"
+                            />
+
+                            <Chip
+                              size="small"
+                              label={`${campaign.stats?.failed || 0} failed`}
+                              color="error"
+                            />
+                          </Box>
+                        </TableCell>
+
+                        <TableCell>
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                          >
+                            {campaign.scheduledAt
+                              ? format(
+                                  new Date(
+                                    campaign.scheduledAt,
+                                  ),
+                                  'dd MMM yyyy, HH:mm',
+                                )
+                              : 'Immediate'}
+                          </Typography>
+                        </TableCell>
+
+                        <TableCell align="right">
+                          <IconButton
+                            size="small"
+                            aria-label="Campaign actions"
+                          >
+                            <MoreHorizontal size={16} />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
                 </TableBody>
               </Table>
             </Box>
@@ -152,51 +290,19 @@ export function WhatsAppTab({ campaigns, loadingCampaigns, onCampaignCreated }: 
         </MarketingCard>
       </MarketingSection>
 
-      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Create WhatsApp campaign</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" mb={2}>
-            Give the campaign a name your team will recognize, and describe who should receive it.
-          </Typography>
-          {error && (
-            <Typography color="error" variant="body2" mb={1}>
-              {error}
-            </Typography>
-          )}
-          <Box display="flex" flexDirection="column" gap={2} mt={1}>
-            <TextField
-              label="Campaign name"
-              value={form.campaignName}
-              onChange={(e) => setForm((prev) => ({ ...prev, campaignName: e.target.value }))}
-              fullWidth
-              required
-              placeholder="e.g. Weekend open house invite"
-            />
-            <TextField
-              label="Audience"
-              value={form.audience}
-              onChange={(e) => setForm((prev) => ({ ...prev, audience: e.target.value }))}
-              fullWidth
-              required
-              placeholder="e.g. Warm leads in Gurgaon"
-              helperText="This is for your team — it does not send messages yet."
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpen(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            disabled={!form.campaignName.trim() || !form.audience.trim() || createMutation.isPending}
-            onClick={() => {
-              setError('')
-              createMutation.mutate()
-            }}
-          >
-            {createMutation.isPending ? 'Creating…' : 'Create'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <WhatsAppCampaignDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        onSuccess={() => {
+          setDrawerOpen(false)
+
+          queryClient.invalidateQueries({
+            queryKey: ['whatsapp-campaigns'],
+          })
+
+          onCampaignCreated?.()
+        }}
+      />
     </Box>
   )
 }

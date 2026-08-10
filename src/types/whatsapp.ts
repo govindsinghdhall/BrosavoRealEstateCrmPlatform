@@ -2,6 +2,18 @@ export interface WhatsAppSettings {
   businessPhone?: string
   businessId?: string
   displayName?: string
+
+  // Connection information
+  isConnected?: boolean
+  phoneNumber?: string
+  phoneNumberId?: string
+  wabaId?: string
+  webhookVerified?: boolean
+
+  // Account metadata
+  businessName?: string
+  templateCount?: number
+  lastSync?: string
 }
 
 export interface WhatsAppTemplate {
