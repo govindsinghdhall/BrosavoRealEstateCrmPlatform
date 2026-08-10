@@ -1,4 +1,4 @@
-export const APP_NAME = 'Durga Property'
+export const APP_NAME = 'BROSAVO'
 
 export const STORAGE_KEYS = {
   TOKEN: 'recrm_token',
@@ -6,7 +6,7 @@ export const STORAGE_KEYS = {
   SIDEBAR: 'recrm_sidebar',
 } as const
 
-export const POWERED_BY_URL = 'https://brisavo.com'
+export const POWERED_BY_URL = 'https://brosavo.com'
 export const POWERED_BY_LABEL = 'Brosavo.com'
 
 export const LEAD_STATUSES = [

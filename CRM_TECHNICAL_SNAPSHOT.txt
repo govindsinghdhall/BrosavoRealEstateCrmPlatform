@@ -1,0 +1,1168 @@
+CRM_TECHNICAL_SNAPSHOT
+Generated for handoff: WhatsApp bulk campaign + Google Contacts import
+Date context: 2026-08-10
+DO NOT treat this file as application code. No secrets included. Sensitive values shown as [REDACTED].
+
+FRONTEND PATH: /Users/govinddhall/Desktop/RealEstateCRM
+BACKEND PATH:  /Users/govinddhall/Desktop/RealEstateBackend
+
+NOTE: These are SEPARATE repositories / folders on Desktop.
+Frontend package.json still references a nested `RealEstateBackend/` prefix for some npm scripts; the live backend inspected for this snapshot is `/Users/govinddhall/Desktop/RealEstateBackend`.
+
+================================================================================
+1. PROJECT OVERVIEW
+================================================================================
+
+Frontend framework and version:
+- React 19.2.x
+- Vite 8.0.x
+- TypeScript ~6.0.2
+- React Router DOM 7.17.x
+- MUI (@mui/material) 6.5.x + Emotion
+- TanStack React Query 5.101.x
+- Zustand 5.0.x
+- Axios 1.17.x
+- react-hook-form + zod
+- xlsx 0.18.5 (frontend also has SheetJS)
+- Package manager: npm (package-lock present pattern; scripts use npm)
+
+Backend framework and version:
+- Express 5.2.x
+- TypeScript 7.0.x (dev)
+- Node.js engines: >=20 (local node observed during snapshot: v26.5.0)
+- Mongoose 8.24.x
+- Zod 3.25.x
+- jsonwebtoken, bcryptjs, multer, xlsx, node-cron, axios, winston (dependency present; active logger util uses console wrapper)
+- Package manager: npm
+
+Language: TypeScript on both sides (not plain JavaScript app code).
+
+Database technology: MongoDB (local docker-compose uses mongo:7; production URI from env MONGODB_URI — hosting UNKNOWN beyond URI presence).
+
+ORM/ODM: Mongoose (ODM). Numeric auto-increment `_id` via Counter + applyAutoIncrement. NOT Prisma. NOT Sequelize.
+
+Authentication system: JWT Bearer access tokens. Payload fields: userId, organizationId, roleId, email. No refresh-token flow found in jwt util. Frontend stores accessToken in Zustand persist.
+
+API architecture:
+- REST API under prefix `/api/v1`
+- Response envelope: `{ success, message?, data }` and paginated `{ success, message?, data, meta }`
+- Errors: `{ success: false, message, code? }`
+- Controllers -> services -> Mongoose models
+- Validation: Zod in controllers
+- Auth middleware: authenticate + requirePermission
+
+Deployment architecture (detectable):
+- Backend: Render via render.yaml (service name brisavo-realestate-backend, API_BASE_URL https://brisavorealestatebackend-1.onrender.com)
+- Frontend: production FRONTEND_URL in render.yaml points to https://crm.durgaproperty.com (hosting platform for SPA itself: UNKNOWN from code; likely Vercel/static SPA rewrites — not confirmed in repo files inspected beyond URL)
+- Local DB: docker-compose.yml in frontend repo runs mongo:7 + mongo-express
+
+Environment structure:
+- Backend: dotenv + Zod schema in src/config/env.ts; .env.example exists
+- Frontend: VITE_API_BASE_URL (default fallback http://localhost:3000/api/v1 in api/client.ts)
+- Vite proxy: /api -> http://localhost:4000 (PORT mismatch risk vs backend default PORT 3000)
+
+Monorepo or separate:
+- SEPARATE frontend and backend folders/repos
+- Frontend scripts historically assume nested RealEstateBackend/ (may be stale relative to Desktop backend path)
+
+Main folder structure (high level):
+FRONTEND:
+  src/api, src/components, src/pages, src/routes, src/store, src/theme, src/types, src/utils, src/schemas
+BACKEND:
+  src/config, src/controllers, src/cron, src/integrations, src/middleware, src/models, src/repositories, src/routes, src/scripts, src/services, src/utils
+
+Important config excerpts (no secrets):
+
+Frontend package.json scripts (selected):
+- "dev": vite
+- "dev:api": npm run dev --prefix RealEstateBackend
+- "build": tsc -b && vite build
+- "db:up": docker compose up -d
+
+Backend package.json scripts:
+- "dev": tsx watch src/index.ts
+- "build": tsc
+- "start": node dist/index.js
+- "seed": tsx src/scripts/seed.ts
+
+vite.config.ts:
+- port 5173
+- proxy /api -> localhost:4000
+- alias @ -> ./src
+
+Backend app.ts:
+- helmet, cors, morgan, express.json(2mb)
+- static /uploads/marketing
+- mounts /api/v1 routes
+- notFoundHandler + errorHandler
+
+Backend index.ts bootstrap:
+- connectDatabase()
+- seedDemoOrganization()
+- syncDefaultRolePermissions()
+- startMarketingCronJobs()  << WhatsApp cron NOT started here
+- listen(env.PORT)
+
+Docker: frontend docker-compose.yml — mongo:7 on 27017, mongo-express on 8081
+
+================================================================================
+2. FRONTEND STRUCTURE
+================================================================================
+
+App directory: NOT Next.js App Router. SPA with Vite + react-router-dom createBrowserRouter in src/routes/index.tsx.
+
+Pages (src/pages/):
+- auth/LoginPage.tsx, auth/SignupPage.tsx
+- dashboard/DashboardPage.tsx
+- leads/LeadsPage.tsx, LeadDetailPage.tsx
+- contacts/ContactsPage.tsx, ContactDetailPage.tsx
+- properties/PropertiesPage.tsx, PropertyOwnersPage.tsx
+- siteVisits/SiteVisitsPage.tsx
+- bookings/BookingsPage.tsx
+- marketing/MarketingHubPage.tsx
+- users/UsersPage.tsx
+- reports/ReportsPage.tsx
+- settings/CompanySettingsPage.tsx, ProfilePage.tsx
+
+Layouts:
+- AppLayout (src/components/layout/AppLayout.tsx)
+- OrganizationBootstrap
+- Sidebar navigation
+- ProtectedRoute (src/routes/ProtectedRoute.tsx)
+- PropertiesLayout
+
+Navigation (Sidebar NAV_ITEMS):
+/dashboard, /leads, /contacts, /properties, /properties/owners, /site-visits, /bookings, /marketing, /users, /reports
+(+ settings/profile via other UI)
+
+Components of special interest:
+- contacts/: AddContactsButton, CreateContactDrawer, ImportContactsDrawer
+- whatsapp/: WhatsAppSendDrawer, WhatsAppTemplatesManager
+- marketing/: WhatsAppTab, WhatsAppConfiguration, MarketingHub pieces
+- common/: AppTable, StatCard, EmptyState, LoadingSpinner, drawers/modals patterns
+- forms/: shared form patterns with react-hook-form
+
+API layer:
+- src/api/client.ts — axios instance + interceptors
+- src/api/endpoints.ts — path constants
+- src/api/services/*.service.ts — domain services
+- src/api/utils/response.ts — unwrap helpers
+
+State:
+- Zustand authStore (persist)
+- TanStack Query for server state
+- Local useState in pages/components
+
+--- Important frontend modules ---
+
+FILE: src/api/client.ts
+PURPOSE: Axios API client with auth header + 401 logout redirect
+IMPORTANT EXPORTS: apiClient, getErrorMessage
+IMPORTANT FUNCTIONS: request interceptor adds Bearer token from useAuthStore; response interceptor on 401 clears auth and redirects /login (except login/register)
+API CALLS USED: all via apiClient
+RELATED FILES: src/store/authStore.ts, src/api/endpoints.ts
+
+FILE: src/api/endpoints.ts
+PURPOSE: Central REST path map under /api/v1 relative base
+IMPORTANT EXPORTS: ENDPOINTS
+WHATSAPP endpoints currently defined:
+  SETTINGS, TEMPLATES, TEMPLATE_BY_ID, SEND
+NOTE: Backend also exposes conversations, campaigns, auth-url, connect, sync, etc. — many NOT listed in ENDPOINTS yet.
+CONTACTS: BASE, BY_ID, IMPORT_PREVIEW, IMPORT
+MARKETING: dashboard, google oauth, reviews, content, campaigns, analytics
+RELATED FILES: all *service.ts files
+
+FILE: src/api/services/contacts.service.ts
+PURPOSE: Contact CRUD + Excel import preview/import
+API CALLS USED: GET/POST/PUT/DELETE /contacts, POST /contacts/import/preview, POST /contacts/import
+RELATED FILES: src/types/contact.ts, ImportContactsDrawer.tsx, ContactsPage.tsx
+
+FILE: src/api/services/whatsapp.service.ts
+PURPOSE: Legacy/simple WhatsApp settings, local templates CRUD, send message
+IMPORTANT EXPORTS: whatsappService.getSettings, updateSettings, getTemplates, createTemplate, updateTemplate, deleteTemplate, sendMessage
+API CALLS USED: ENDPOINTS.WHATSAPP.*
+RELATED FILES: WhatsAppSendDrawer.tsx, WhatsAppTemplatesManager.tsx, WhatsAppConfiguration.tsx
+NOTE: Does NOT currently wrap backend campaign/conversation APIs.
+
+FILE: src/api/services/marketing.service.ts
+PURPOSE: Marketing Hub API (Google Business, content, marketing campaigns)
+RELATED FILES: MarketingHubPage.tsx, WhatsAppTab.tsx (uses marketing campaigns list for tab UI)
+
+FILE: src/store/authStore.ts
+PURPOSE: Persist user + accessToken
+IMPORTANT EXPORTS: useAuthStore
+IMPORTANT FUNCTIONS: setAuth, setUser, setAccessToken, logout, setHasHydrated
+RELATED FILES: LoginPage, ProtectedRoute, api/client.ts
+
+FILE: src/pages/contacts/ContactsPage.tsx
+PURPOSE: Contact list UI
+RELATED FILES: CreateContactDrawer, ImportContactsDrawer, contacts.service
+
+FILE: src/components/contacts/ImportContactsDrawer.tsx
+PURPOSE: Excel/CSV import UX (preview then import with duplicateAction skip|update)
+API CALLS USED: contacts import preview + import
+RELATED FILES: contact-import backend service
+
+FILE: src/pages/marketing/MarketingHubPage.tsx
+PURPOSE: Marketing Hub tabs (WhatsApp, Google Business, AI Content, Analytics, Settings)
+RELATED FILES: components/marketing/*
+
+FILE: src/components/marketing/WhatsAppTab.tsx
+PURPOSE: WhatsApp section in Marketing Hub; campaign table UI using marketing campaign types/status mapping (draft|scheduled|sending|sent|paused|cancelled) — NOT the backend WhatsAppCampaign status enum
+RELATED FILES: WhatsAppConfiguration.tsx, marketingService
+
+FILE: src/components/marketing/WhatsAppConfiguration.tsx
+PURPOSE: WhatsApp connection/settings UI in Marketing Hub
+RELATED FILES: whatsapp.service / marketing flows
+
+FILE: src/components/whatsapp/WhatsAppSendDrawer.tsx
+PURPOSE: Send WhatsApp message drawer
+RELATED FILES: whatsapp.service.sendMessage
+
+FILE: src/components/whatsapp/WhatsAppTemplatesManager.tsx
+PURPOSE: Manage local WhatsAppTemplate records (name/message) via API
+RELATED FILES: WhatsAppTemplate model (backend) — distinct from WhatsAppMetaTemplate
+
+Attention modules status:
+- Contacts: EXISTS (full CRUD + import)
+- Leads: EXISTS
+- Customers: NOT FOUND as separate entity (contacts/leads used)
+- Users: EXISTS
+- Organizations: EXISTS (current org settings)
+- Campaigns: TWO concepts — MarketingCampaign (marketing hub) AND WhatsAppCampaign (backend WhatsApp models/routes). Frontend Marketing WhatsApp tab currently oriented to marketing campaigns.
+- Messaging/WhatsApp: PARTIAL frontend vs FULLER backend
+- Import/export: Contact Excel import EXISTS; property images upload EXISTS; marketing content upload EXISTS
+- Google Contacts import: NOT FOUND
+
+================================================================================
+3. BACKEND STRUCTURE
+================================================================================
+
+Entry: src/index.ts -> createApp() from src/app.ts
+Routes index: src/routes/index.ts mounts under /api/v1
+
+Route mounts:
+- GET /health
+- /auth
+- /organizations
+- /users
+- /roles
+- /leads
+- /contacts
+- /properties
+- /property-lookups
+- /lead-sources
+- /site-visits
+- /bookings
+- /reports
+- whatsapp.routes (root-mounted: /webhooks/whatsapp, /whatsapp/*)
+- /marketing
+- /public
+
+Middleware:
+- authenticate, requirePermission (src/middleware/auth.ts)
+- upload multer memory (src/middleware/upload.ts) — 10MB
+- errorHandler, notFoundHandler
+
+Controllers (selected):
+- contacts.controller.ts
+- WhatsAppController.ts (class) + legacy whatsapp.controller.ts
+- WebhookController.ts
+- marketing.controller.ts
+- auth.controller.ts
+- users, organizations, leads, etc.
+
+Services (selected):
+- contact.service.ts, contact-import.service.ts
+- WhatsAppService.ts (singleton class) + legacy whatsapp.service.ts + whatsapp.payload.ts
+- marketing/* services
+- auth.service.ts, organization.service.ts, user.service.ts
+
+Repositories:
+- marketing.repository.ts (marketing domain); most CRM uses services + models directly
+
+Jobs/cron:
+- src/cron/marketing.cron.ts — STARTED from index.ts
+- src/cron/whatsapp.cron.ts — DEFINED but NOT imported/started in index.ts (CRITICAL)
+
+Queues/workers/Bull/Redis: NOT FOUND
+
+Webhook handlers:
+- GET/POST /api/v1/webhooks/whatsapp via WebhookController
+- WhatsAppWebhookLog model
+
+Validation: Zod parse in controllers
+Error handling: AppError hierarchy + errorHandler
+Logging: morgan('dev') + src/utils/logger.ts console wrapper; winston dependency present but primary util is custom logger
+
+--- Important backend modules ---
+
+FILE: src/routes/contacts.routes.ts
+PURPOSE: Org-scoped contact CRUD + import
+ROUTE base: /api/v1/contacts
+HTTP METHODS:
+  POST /import/preview (multipart file) — CONTACTS_CREATE
+  POST /import (multipart file + duplicateAction) — CONTACTS_CREATE
+  GET / — CONTACTS_READ
+  POST / — CONTACTS_CREATE
+  GET /:id — CONTACTS_READ
+  PUT /:id — CONTACTS_UPDATE
+  DELETE /:id — CONTACTS_DELETE
+AUTHENTICATION: authenticate + requirePermission
+REQUEST BODY (create): firstName, lastName?, phone, email?, alternatePhone?, address?, city?, state?, pincode?, sourceId?
+PARAMETERS: pagination query page/limit/search/sortBy/sortOrder; :id numeric
+RESPONSE: success envelope / successPaginated
+DATABASE OPERATIONS: Contact find/create/update soft-delete; Lead counts; LeadSource lookup
+RELATED FILES: contacts.controller.ts, contact.service.ts, contact-import.service.ts
+
+FILE: src/services/contact-import.service.ts
+PURPOSE: Parse Excel via xlsx, preview validity/duplicates by phone, import with skip|update
+IMPORTANT FUNCTIONS: previewContactImport, importContacts, assertImportFile, parseRows, evaluateRows
+DUPLICATE KEY: phone within organizationId (findContactByPhone)
+RELATED FILES: contacts.controller import handlers
+
+FILE: src/routes/whatsapp.routes.ts
+PURPOSE: Meta WhatsApp Cloud API integration surface
+PUBLIC:
+  GET /webhooks/whatsapp — verify
+  POST /webhooks/whatsapp — receive
+  GET /whatsapp/callback — OAuth callback
+AUTHENTICATED (authenticate; note: many routes do NOT use requirePermission — only JWT):
+  GET /whatsapp/auth-url
+  GET /whatsapp/settings
+  POST /whatsapp/connect
+  POST /whatsapp/disconnect
+  POST /whatsapp/refresh
+  GET /whatsapp/templates
+  POST /whatsapp/templates/sync
+  POST /whatsapp/send
+  GET/POST /whatsapp/conversations ...
+  GET /whatsapp/unread
+  GET/POST /whatsapp/campaigns
+  GET /whatsapp/campaigns/:campaignId/stats
+  GET /whatsapp/webhook-logs
+RELATED FILES: WhatsAppController.ts, WebhookController.ts, WhatsAppService.ts
+
+FILE: src/controllers/WhatsAppController.ts
+PURPOSE: HTTP adapters for OAuth, settings, templates, send, conversations, campaigns
+IMPORTANT FUNCTIONS: getAuthUrl, oauthCallback, getSettings, connectAccount, disconnectAccount, refreshAccount, getTemplates, syncTemplates, sendMessage, getConversations, createConversation, getConversationMessages, markRead, assignConversation, archiveConversation, getUnreadCount, getCampaigns, createCampaign, getCampaignStats
+AUTHENTICATION: req.auth from JWT (organizationId, userId)
+RELATED FILES: WhatsAppService
+
+FILE: src/services/WhatsAppService.ts
+PURPOSE: Meta OAuth connect, token storage (encrypted), Graph API send, template sync, conversations, campaigns execute
+IMPORTANT FUNCTIONS (selected):
+  getAuthUrl, connectOrganization, getAccount, getAccountInfo, syncMetaTemplates, sendMessage, getOrCreateConversation, createConversation, getConversations, getConversationMessages, getUnreadCount, createCampaign, executeCampaign, getCampaignStats, getCampaignRecipients
+CAMPAIGN CREATE: recipients as phone string[]; templateId -> WhatsAppMetaTemplate; status draft or queued if scheduledAt
+EXECUTE: sets running, sends via Meta, updates recipient/campaign stats
+RELATED FILES: models WhatsApp*, utils/encryption.ts, cron/whatsapp.cron.ts
+
+FILE: src/cron/whatsapp.cron.ts
+PURPOSE: Template sync every 6h; process queued/draft campaigns every minute if scheduledAt <= now; token refresh stub every 30d
+STATUS: NOT wired in src/index.ts — campaigns will NOT auto-process unless startWhatsAppCronJobs() is called
+
+FILE: src/middleware/auth.ts
+PURPOSE: JWT auth + permission checks against Role.permissions for organization
+IMPORTANT FUNCTIONS: authenticate, requirePermission
+RELATED FILES: utils/jwt.ts, models/Role.ts, constants/permissions.ts
+
+FILE: src/middleware/errorHandler.ts
+PURPOSE: Map AppError to JSON; else 500
+RESPONSE FORMAT: { success:false, message, code? }
+
+FILE: src/routes/marketing.routes.ts
+PURPOSE: Google Business / marketing hub APIs under /marketing
+RELATED: Google OAuth client integrations/googleBusiness.client.ts, marketing cron
+
+LEGACY PARALLEL FILES (exist alongside newer WhatsApp*):
+- controllers/whatsapp.controller.ts
+- services/whatsapp.service.ts
+- Organization.settings.whatsapp { businessPhone, businessId, displayName }
+Implementers must check which routes are mounted; primary mounted file is whatsapp.routes.ts using WhatsAppController class.
+
+================================================================================
+4. DATABASE
+================================================================================
+
+Technology: MongoDB via Mongoose
+IDs: numeric `_id` (Number) with Counter collection auto-increment — NOT ObjectId for these models
+Tenant field convention: organizationId (number) on tenant-owned documents
+Soft delete convention: deletedAt: Date | null on many models; queries use activeOrgFilter = { organizationId, deletedAt: null }
+
+--- Contact ---
+NAME: Contact (collection from model name Contact)
+FIELDS:
+  _id Number (auto)
+  organizationId Number required indexed
+  firstName String required
+  lastName String default ''
+  email String|null default null lowercase
+  phone String required indexed
+  alternatePhone String|null
+  address, city, state, pincode String|null
+  sourceId Number|null ref LeadSource
+  deletedAt Date|null
+  createdAt, updatedAt timestamps
+INDEXES: organizationId; phone; compound { organizationId, phone }
+UNIQUE: no unique compound on phone (duplicates prevented in import logic by lookup, not DB unique constraint)
+RELATIONSHIPS: belongs to Organization; optional LeadSource; Leads reference contactId
+SOFT DELETE: yes (deletedAt)
+TENANT FIELD: organizationId
+IMPORTANT BUSINESS LOGIC: phone required; import duplicate detection by exact phone string match within org; serializeContact exposes id (from _id)
+
+--- User ---
+NAME: User
+FIELDS: _id, organizationId, roleId, email (unique globally), passwordHash (select:false), firstName, lastName, phone, avatar, isActive, lastLoginAt, timestamps
+INDEXES: organizationId; { organizationId, email }
+UNIQUE: email unique
+TENANT: organizationId
+SOFT DELETE: NOT via deletedAt — uses isActive
+
+--- Organization ---
+NAME: Organization
+FIELDS: _id, name, slug (unique), logo, email, phone, address, settings (faviconUrl, tagline, websiteApiKey, whatsapp.{businessPhone,businessId,displayName}), isActive, timestamps
+TENANT ROOT entity. No organizationId on itself.
+
+--- Role ---
+NAME: Role (inspected via auth middleware usage)
+FIELDS include: organizationId, permissions: string[], name/slug for defaults admin/manager/agent/viewer
+PERMISSIONS constants in src/constants/permissions.ts
+
+--- Lead ---
+NAME: Lead
+Relevant: organizationId, contactId, status, budget, requirements, sourceId, deletedAt, etc.
+Contact detail loads leads by contactId.
+
+--- WhatsAppAccount ---
+NAME: WhatsAppAccount
+FIELDS: organizationId, businessName, displayName, businessId, wabaId, phoneNumber, phoneNumberId (unique), accessToken (select:false), tokenExpiry, isConnected, webhookVerified, lastSync, deletedAt, timestamps
+INDEXES: org+isConnected; org+phoneNumberId; businessId unique
+TENANT: organizationId
+IMPORTANT: access tokens stored encrypted via encryptToken (ENCRYPTION_KEY) — never log raw tokens
+
+--- WhatsAppMetaTemplate ---
+NAME: WhatsAppMetaTemplate
+FIELDS: organizationId, templateId (unique string from Meta), name, category MARKETING|UTILITY|AUTHENTICATION, language, status APPROVED|PENDING|REJECTED|PAUSED|DISABLED, quality GREEN|YELLOW|RED|UNKNOWN, components[], variables[], deletedAt, timestamps
+USED BY: WhatsAppCampaign.templateId
+
+--- WhatsAppTemplate (legacy/local) ---
+NAME: WhatsAppTemplate
+FIELDS: organizationId, name, message, timestamps
+Simple free-text templates — separate from Meta templates
+
+--- WhatsAppCampaign ---
+NAME: WhatsAppCampaign
+FIELDS: organizationId, name, templateId (ref WhatsAppMetaTemplate), status draft|queued|running|completed|cancelled|failed, recipients string[], variables Mixed, scheduledAt, sentAt, completedAt, stats{total,sent,delivered,read,failed,replied}, createdBy, deletedAt, timestamps
+INDEXES: org+status; org+scheduledAt; org+createdAt
+
+--- WhatsAppCampaignRecipient ---
+NAME: WhatsAppCampaignRecipient
+FIELDS: organizationId, campaignId, contactId?, phoneNumber, messageId?, status pending|sent|delivered|read|failed, errorMessage?, sentAt, deliveredAt, readAt, timestamps
+NOTE: contactId optional — campaigns currently store phones; contact linkage not required
+
+--- WhatsAppConversation ---
+NAME: WhatsAppConversation
+FIELDS: organizationId, contactId?, wabaId, phoneNumberId, customerPhone, lastMessageAt, unreadCount, isArchived, assignedTo?, status active|archived|resolved, deletedAt, timestamps
+UNIQUE: { organizationId, customerPhone, phoneNumberId, wabaId }
+
+--- WhatsAppMessage ---
+NAME: WhatsAppMessage
+FIELDS: organizationId, conversationId, messageId (unique), from, to, direction inbound|outbound, type text|image|video|audio|document|location|interactive|template, content Mixed, status queued|sending|sent|delivered|read|failed, statusCode?, errorMessage?, sentAt, deliveredAt, readAt, metadata?, deletedAt, timestamps
+
+--- WhatsAppWebhookLog ---
+NAME: WhatsAppWebhookLog
+PURPOSE: store webhook payloads/events (inspect model file for full fields when implementing)
+
+--- Marketing models (related, separate from WhatsApp campaigns) ---
+MarketingProviderAccount, GoogleReview, MarketingContent, MarketingCampaign, MarketingSettings, MarketingAiReply, MarketingActivityLog
+Use organizationId for tenancy.
+
+--- Files / imports ---
+No dedicated File/ImportJob collection found for contacts.
+Contact import is synchronous request processing of uploaded buffer.
+Marketing uploads stored on disk under MARKETING_UPLOAD_DIR (default uploads/marketing).
+
+Do NOT invent other fields. Full schemas live under RealEstateBackend/src/models/.
+
+================================================================================
+5. MULTI-TENANT ARCHITECTURE
+================================================================================
+
+Separation key: organizationId (numeric), NOT company_id / tenantId.
+
+How logged-in user's organization is determined:
+1. User registers/logs in via /auth
+2. JWT signed with JwtPayload { userId, organizationId, roleId, email } (src/utils/jwt.ts)
+3. Frontend stores accessToken; axios sends Authorization: Bearer <token>
+4. authenticate middleware verifies JWT and sets req.auth
+5. Controllers use req.auth.organizationId for all queries
+
+Organization ID handling:
+- Embedded in JWT — clients do not send organizationId in body for normal CRM ops
+- Services accept organizationId as first argument
+
+Tenant isolation in queries:
+- Pattern: Contact.findOne({ _id, ...activeOrgFilter(organizationId) })
+- activeOrgFilter = { organizationId, deletedAt: null } (src/utils/pagination.ts)
+- Role permission check also scoped: Role.findOne({ _id: roleId, organizationId })
+
+Contacts belong to organizations via Contact.organizationId
+Users belong to organizations via User.organizationId
+WhatsApp accounts/campaigns/messages scoped by organizationId
+
+Middleware for tenant isolation: no separate "tenant middleware"; tenancy is JWT organizationId + query filters.
+
+Authorization: requirePermission(...permission strings) against Role.permissions.
+
+Example (contacts list):
+  listContacts(req.auth.organizationId, { page, limit, search, ... })
+
+WhatsApp OAuth state encodes organizationId (base64 JSON) for callback association.
+
+CRITICAL for WhatsApp/campaigns/contacts: always scope by req.auth.organizationId; never trust client-supplied org ids.
+
+================================================================================
+6. AUTHENTICATION
+================================================================================
+
+Login: POST /api/v1/auth/login (auth.routes + auth.controller/service)
+Signup/Register: POST /api/v1/auth/register — creates org + admin user pattern (inspect auth.service for exact flow)
+Logout: POST /api/v1/auth/logout (frontend endpoint defined)
+Current user: GET /api/v1/auth/me
+
+Token type: JWT access token only (signAccessToken / verifyAccessToken)
+Refresh token: NOT FOUND in jwt util
+Cookies/sessions: NOT FOUND for API auth (Bearer header)
+
+Frontend:
+- authStore persists token
+- ProtectedRoute checks isAuthenticated
+- 401 -> logout + /login
+
+How a new endpoint should authenticate:
+1. router.use(authenticate) or per-route authenticate
+2. Optionally requirePermission(PERMISSIONS.X)
+3. Read req.auth.organizationId and req.auth.userId
+4. Filter all DB ops by organizationId
+
+Relevant paths:
+- RealEstateBackend/src/middleware/auth.ts — authenticate, requirePermission
+- RealEstateBackend/src/utils/jwt.ts — JwtPayload, signAccessToken, verifyAccessToken
+- RealEstateBackend/src/routes/auth.routes.ts
+- RealEstateCRM/src/store/authStore.ts
+- RealEstateCRM/src/api/client.ts
+- RealEstateCRM/src/routes/ProtectedRoute.tsx
+
+Permissions of note (src/constants/permissions.ts):
+- contacts.read/create/update/delete
+- marketing.read / marketing.manage / marketing.reply
+- NO dedicated whatsapp.* permission string found — WhatsApp routes use authenticate only
+
+Role defaults: admin (all), manager, agent, viewer with ROLE_PERMISSIONS map; syncDefaultRolePermissions on boot.
+
+================================================================================
+7. EXISTING CONTACT SYSTEM
+================================================================================
+
+Contact model: YES — models/Contact.ts
+Contact API: YES — /api/v1/contacts
+Contact list: YES — ContactsPage + listContacts (search on name/email/phone/city)
+Contact creation: YES
+Contact editing: YES
+Contact deletion: YES (soft delete via deletedAt)
+Contact search: YES (query search)
+Contact filters: search + sort; advanced tag/group filters NOT FOUND
+Contact import: YES — Excel via multer + xlsx preview/import
+Contact export: NOT FOUND as dedicated export endpoint
+Phone handling: string field, required; duplicate by exact string match; NO E.164 normalization utility found in contact.service
+Country code handling: NOT FOUND as dedicated field/logic
+Duplicate detection: import preview marks duplicate if findContactByPhone(org, phone); import action skip|update
+Tags: NOT FOUND on Contact
+Groups/lists: NOT FOUND on Contact
+Lead conversion: Leads link to contactId; contact detail returns related leads
+
+REUSE FOR GOOGLE CONTACTS IMPORT:
+YES — extend existing Contact model + contact-import.service patterns.
+Map Google givenName/familyName/phoneNumbers/emails into firstName/lastName/phone/email.
+Reuse findContactByPhone duplicate strategy.
+Do NOT create a parallel Contacts collection.
+Consider adding optional sourceId or a LeadSource named "Google Contacts" if attribution needed (sourceId already exists).
+Phone normalization may need to be added carefully because current matching is exact string.
+
+================================================================================
+8. EXISTING FILE UPLOAD SYSTEM
+================================================================================
+
+Libraries: multer (memoryStorage), limits 10MB (src/middleware/upload.ts)
+
+Contact import endpoints:
+- POST /contacts/import/preview — field name `file`
+- POST /contacts/import — field `file` + body duplicateAction
+
+Frontend: ImportContactsDrawer; apiClient strips Content-Type for FormData
+
+Marketing content upload: /marketing/content/upload; static serve /uploads/marketing
+Property images: property image upload endpoints (batch)
+
+S3 / AWS cloud storage: NOT FOUND as primary storage (disk + memory buffers)
+File size limits: multer 10MB; express.json 2mb
+Parsing: xlsx for contacts
+Error handling: assertImportFile throws AppError; zod/AppError via errorHandler
+
+================================================================================
+9. EXISTING EXCEL/CSV PROCESSING
+================================================================================
+
+Libraries present:
+- Backend: xlsx (SheetJS) in package.json — used by contact-import.service.ts
+- Frontend: xlsx dependency present
+- exceljs: NOT FOUND
+- csv-parser / papaparse / fast-csv: NOT FOUND as dependencies
+
+Pattern:
+1. XLSX.read(buffer)
+2. first sheet -> sheet_to_json
+3. normalize headers (trim/lower/remove spaces)
+4. map firstname/first_name, phone/mobile/contact, email, city
+5. evaluate valid/duplicate/invalid
+6. import loop createContact / updateContact
+
+Large files: processed synchronously in request memory — no streaming job queue. 10MB multer cap.
+
+Export patterns: jspdf/jspdf-autotable on frontend for PDFs; dedicated contact CSV export NOT FOUND.
+
+================================================================================
+10. EXISTING WHATSAPP INTEGRATION
+================================================================================
+
+STATUS: SUBSTANTIAL BACKEND INTEGRATION EXISTS. FRONTEND COVERAGE IS PARTIAL / SPLIT.
+
+Meta App configuration references (env NAMES only):
+- WHATSAPP_CLIENT_ID
+- WHATSAPP_CLIENT_SECRET
+- WHATSAPP_REDIRECT_URI
+- WHATSAPP_WEBHOOK_VERIFY_TOKEN
+- WHATSAPP_API_BASE_URL (default https://graph.facebook.com)
+- WHATSAPP_GRAPH_API_VERSION (default v17.0)
+- WHATSAPP_PHONE_NUMBER_ID (optional global — org account model preferred)
+- WHATSAPP_ACCESS_TOKEN (optional global — org tokens preferred)
+- API_BASE_URL (webhook URL construction)
+- ENCRYPTION_KEY (token encryption)
+Note: env.ts Zod schema does not include CLIENT_ID/SECRET/VERIFY_TOKEN/REDIRECT_URI/ENCRYPTION_KEY; WhatsAppService/encryption read process.env directly.
+
+OAuth/login flow:
+- GET /whatsapp/auth-url -> WhatsAppService.getAuthUrl (state includes organizationId/userId)
+- Meta redirects to GET /whatsapp/callback?code&state OR client posts code to POST /whatsapp/connect
+- connectOrganization exchanges code, stores WhatsAppAccount with encrypted accessToken
+
+Stored identifiers on WhatsAppAccount:
+- businessId, wabaId, phoneNumberId, phoneNumber, businessName, displayName, tokenExpiry, isConnected, webhookVerified
+
+API client: axios calls to Graph API inside WhatsAppService (inspect sendMessage/syncMetaTemplates for exact endpoints)
+
+Send-message: POST /whatsapp/send -> WhatsAppService.sendMessage
+Templates: local WhatsAppTemplate CRUD (legacy service paths may differ) + Meta sync WhatsAppMetaTemplate via POST /whatsapp/templates/sync
+Webhook: GET verify + POST receive at /api/v1/webhooks/whatsapp
+Webhook URL advertised: `${API_BASE_URL}/api/v1/webhooks/whatsapp`
+
+Campaign system (backend):
+- Models WhatsAppCampaign + WhatsAppCampaignRecipient
+- Routes GET/POST /whatsapp/campaigns, stats
+- executeCampaign in service
+- Cron intended to process queued campaigns — BUT cron not started in index.ts
+
+Conversations/messages models and routes exist for inbox.
+
+Legacy Organization.settings.whatsapp fields still exist for simple business phone metadata.
+
+NEVER expose tokens — values [REDACTED]
+
+================================================================================
+11. EXISTING META/FACEBOOK INTEGRATION
+================================================================================
+
+WhatsApp Cloud API / Meta OAuth for WhatsApp: EXISTS (WhatsAppService getAuthUrl, connectOrganization, callback route)
+
+Google Business OAuth (separate): EXISTS under /marketing/google/*
+
+Facebook Login SDK on frontend: NOT FOUND as Facebook JS SDK product UI
+Embedded Signup: inspect WhatsAppService.getAuthUrl for exact OAuth URL/scopes — Meta WhatsApp embedded signup style may be used; confirm in WhatsAppService implementation when coding
+
+OAuth callback routes:
+- /api/v1/whatsapp/callback (WhatsApp)
+- /api/v1/marketing/google/callback (Google — render.yaml GOOGLE_REDIRECT_URI)
+
+Token exchange: server-side in WhatsAppService.connectOrganization; tokens encrypted at rest
+
+Frontend screens:
+- Marketing Hub WhatsApp tab + WhatsAppConfiguration
+- WhatsAppSendDrawer / TemplatesManager
+
+If asking only about non-WhatsApp Facebook Marketing API: limited/not primary.
+
+Statement for clarity:
+META WHATSAPP INTEGRATION FOUND (backend-heavy).
+GENERAL FACEBOOK PAGE/MARKETING API: NOT FOUND as a separate full product module beyond WhatsApp Graph usage and Google Business marketing module.
+
+================================================================================
+12. EXISTING API CLIENT ARCHITECTURE
+================================================================================
+
+Library: Axios
+Server state: TanStack React Query (used across pages)
+No RTK Query. No SWR. Redux NOT FOUND.
+
+Base URL:
+- import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1'
+
+Auth headers:
+- Authorization: Bearer ${accessToken}
+
+Interceptors:
+- Request: attach token; clear Content-Type for FormData
+- Response: 401 -> logout + redirect /login
+
+Error handling:
+- getErrorMessage reads response.data.message or errors[]
+- Backend ApiError shape { success:false, message, code? }
+
+Token refresh: NOT FOUND (logout on 401)
+
+Service organization: one file per domain under src/api/services/
+
+Example services: contacts.service.ts, whatsapp.service.ts, marketing.service.ts, leads.service.ts, auth.service.ts
+
+unwrap helper: api/utils/response.ts — important: unwrap returns data payload; callers must not assume nested .data again.
+
+================================================================================
+13. EXISTING UI DESIGN SYSTEM
+================================================================================
+
+Primary UI: Material UI (MUI) 6 + Emotion
+Icons: @mui/icons-material + lucide-react
+Charts: recharts
+Tables: custom AppTable + MUI Table; ag-grid also in dependencies
+Forms: MUI TextField + react-hook-form + zod resolvers
+Toasts: inspect existing snackbar/toast utility usage in common components (MUI Snackbar patterns in app)
+Modals: MUI Dialog / Drawer patterns (CreateContactDrawer, ImportContactsDrawer, WhatsAppSendDrawer)
+Loading: LoadingSpinner
+Empty: EmptyState
+
+Tailwind: NOT FOUND as dependency
+shadcn/ui: NOT FOUND
+Ant Design: NOT FOUND
+Bootstrap: NOT FOUND
+
+Reuse for new features:
+- Contact import: ImportContactsDrawer pattern + MUI Drawer/Dialog
+- Campaign creation: MUI Dialog/Drawer like WhatsAppTab create dialog + MarketingCard/MarketingSection
+- Campaign list: AppTable or MUI Table as in WhatsAppTab / ContactsPage
+- Progress/Analytics: StatCard, recharts (Reports/Marketing analytics patterns)
+DO NOT introduce another UI framework.
+
+================================================================================
+14. STATE MANAGEMENT
+================================================================================
+
+- Zustand: auth (persisted)
+- TanStack Query: server data fetch/cache/mutations
+- React local state: forms, drawers, tabs
+- Context: limited (OrganizationBootstrap pattern); no large Redux store
+
+Refresh pattern: queryClient.invalidateQueries after mutations; onSuccess callbacks passed as props (e.g. onCampaignCreated)
+
+================================================================================
+15. BACKGROUND JOBS / CRON / QUEUES
+================================================================================
+
+Bull / BullMQ / Redis / RabbitMQ / Agenda: NOT FOUND
+
+Existing: node-cron
+- marketing.cron.ts — started
+- whatsapp.cron.ts — NOT started from index.ts
+
+WhatsApp campaign processing design in code:
+- Campaigns stored with status draft/queued
+- Cron every minute finds scheduledAt <= now and calls executeCampaign
+- executeCampaign sends in-process (sequential loop) — not a distributed queue
+
+Job retry: failed campaigns set status failed; no formal retry queue found
+Token refresh cron: TODO stub
+
+IMPLICATION: Implementing bulk WhatsApp sending as thousands of synchronous HTTP requests in one API request is unsafe; existing intended pattern is cron + campaign records. However cron wiring is currently incomplete. Redis queue does not exist — adding Bull would be new infrastructure unless you finish wiring node-cron executeCampaign carefully with rate limits.
+
+================================================================================
+16. ERROR HANDLING
+================================================================================
+
+Backend:
+- AppError / NotFoundError / UnauthorizedError / ForbiddenError (utils/errors)
+- Zod validation errors should be converted — verify if zod errors are wrapped (controllers catch next(error); may become 500 if not AppError — check zod handling middleware; dedicated zod error mapper NOT clearly present in errorHandler)
+- errorHandler returns:
+  { success: false, message, code? } for AppError
+  { success: false, message: 'Internal server error' } for unknown
+- notFoundHandler: { success:false, message:'Route not found' }
+
+Frontend:
+- getErrorMessage
+- Query/mutation onError toasts/alerts in components
+
+Webhooks: WebhookController should respond quickly; logs to WhatsAppWebhookLog (inspect for error paths)
+
+Background jobs: cron logs logger.error and may mark campaign failed
+
+Third-party (Meta/Google): services throw AppError with messages; tokens redacted in logs by convention (do not log decryptToken outputs)
+
+================================================================================
+17. LOGGING
+================================================================================
+
+- morgan('dev') HTTP logs
+- src/utils/logger.ts: console.log/error/warn/debug with [INFO]/[ERROR] prefixes
+- winston in package.json but primary custom logger uses console
+- Sentry: NOT FOUND
+- console.error in errorHandler for unexpected errors
+
+Convention: logger.info / logger.error in cron and WhatsAppService
+
+================================================================================
+18. ENVIRONMENT VARIABLES (NAMES ONLY)
+================================================================================
+
+Backend (from .env.example / env.ts / process.env usages):
+NODE_ENV
+PORT
+MONGODB_URI
+JWT_SECRET
+JWT_EXPIRES_IN
+CORS_ORIGIN
+API_BASE_URL
+FRONTEND_URL
+MARKETING_UPLOAD_DIR
+PUBLIC_ORGANIZATION_SLUG
+ENCRYPTION_KEY
+WHATSAPP_API_BASE_URL
+WHATSAPP_GRAPH_API_VERSION
+WHATSAPP_PHONE_NUMBER_ID
+WHATSAPP_ACCESS_TOKEN
+WHATSAPP_CLIENT_ID
+WHATSAPP_CLIENT_SECRET
+WHATSAPP_WEBHOOK_VERIFY_TOKEN
+WHATSAPP_REDIRECT_URI
+GOOGLE_CLIENT_ID
+GOOGLE_CLIENT_SECRET
+GOOGLE_REDIRECT_URI
+
+Frontend:
+VITE_API_BASE_URL
+
+Categorization:
+- frontend: VITE_API_BASE_URL
+- backend/core: NODE_ENV, PORT, CORS_ORIGIN, API_BASE_URL, FRONTEND_URL
+- database: MONGODB_URI
+- authentication: JWT_SECRET, JWT_EXPIRES_IN
+- AWS: NOT FOUND
+- Redis: NOT FOUND
+- Meta/WhatsApp: WHATSAPP_* , ENCRYPTION_KEY
+- Google: GOOGLE_*
+- email: NOT FOUND as primary env set
+- marketing storage: MARKETING_UPLOAD_DIR
+- public site: PUBLIC_ORGANIZATION_SLUG
+
+================================================================================
+19. DEPLOYMENT
+================================================================================
+
+Backend:
+- Render (render.yaml): Node web service, healthCheckPath /api/v1/health
+- Production API host referenced: https://brisavorealestatebackend-1.onrender.com
+
+Frontend:
+- FRONTEND_URL https://crm.durgaproperty.com
+- Exact hoster (Vercel/etc.): UNKNOWN from inspected config files (no vercel.json confirmed in this pass)
+
+Database:
+- Local: Docker Mongo 7
+- Production: MONGODB_URI sync:false on Render — likely MongoDB Atlas or external Mongo — UNKNOWN provider
+
+Redis hosting: NOT FOUND
+CI/CD GitHub Actions: NOT FOUND in this inspection pass (may exist — UNKNOWN if absent from quick search)
+Docker: local mongo only via frontend docker-compose.yml
+
+================================================================================
+20. CURRENT DATABASE MIGRATION SYSTEM
+================================================================================
+
+Prisma migrations: NOT FOUND
+Sequelize migrations: NOT FOUND
+SQL migrations: NOT FOUND
+Mongoose: schema-in-code is source of truth
+
+How to add a new model/table:
+1. Create src/models/YourModel.ts with Schema + applyAutoIncrement(schema, 'YourModel')
+2. Export from models/index.ts if used centrally
+3. Use organizationId + deletedAt conventions where applicable
+4. Add indexes in schema
+5. Restart server — MongoDB creates collections on first write
+6. If default roles/permissions needed, update constants/permissions.ts and syncDefaultRolePermissions script
+
+Seeders: src/scripts/seed.ts (seedDemoOrganization), syncRolePermissions.ts
+Schema synchronization: automatic via Mongoose (no migration runner)
+
+================================================================================
+21. EXISTING TESTING
+================================================================================
+
+Jest/Vitest/Cypress/Playwright/RTL/Supertest as project test suites: NOT FOUND as configured test runner scripts in package.json
+
+Existing test-like file:
+- RealEstateBackend/src/services/whatsapp.payload.test.ts (payload helper tests — check if runnable without harness)
+
+Important tests: essentially minimal; do not assume coverage.
+
+================================================================================
+22. IMPORTANT BUSINESS LOGIC
+================================================================================
+
+Contacts:
+- Always org-scoped; soft-deleted excluded
+- Phone required; duplicate import keyed by exact phone
+- Contact detail includes related leads
+
+Leads:
+- Linked to contacts; statuses and timelines exist; property linking exists
+
+Organizations:
+- Created on register; slug unique; settings hold branding + legacy whatsapp metadata
+- Users belong to one organizationId
+
+Users/Roles:
+- Permission strings on Role; admin gets ALL_PERMISSIONS
+- requirePermission enforces AND of requested permissions
+
+Phone numbers:
+- Stored as free-form strings
+- WhatsApp campaign recipients are phone strings; contactId optional on recipients
+- Conversation uniqueness includes customerPhone + phoneNumberId + wabaId + org
+
+WhatsApp:
+- One WhatsAppAccount per org connection model (businessId unique globally)
+- Access tokens encrypted; select:false
+- Meta templates synced to WhatsAppMetaTemplate; campaigns require Meta template id
+- Campaign execution updates stats and recipient statuses
+- Webhook updates delivery/read (WebhookController)
+- Cron intended for async send — currently not started
+
+Marketing campaigns vs WhatsApp campaigns:
+- Separate models and APIs — do not confuse MarketingCampaign with WhatsAppCampaign
+
+Permissions:
+- marketing.* gates Marketing Hub APIs
+- WhatsApp routes currently JWT-only (no whatsapp permission constant)
+
+Messaging:
+- Conversations + messages for inbox
+- Send supports template/text paths in WhatsAppService
+
+================================================================================
+23. FILE TREE (USEFUL)
+================================================================================
+
+RealEstateCRM/
+  package.json
+  vite.config.ts
+  docker-compose.yml
+  src/
+    api/
+      client.ts
+      endpoints.ts
+      services/   (auth, contacts, whatsapp, marketing, leads, ...)
+      utils/
+    components/
+      common/
+      contacts/
+      marketing/
+      whatsapp/
+      layout/
+      leads/
+      ...
+    pages/
+      auth/, contacts/, leads/, marketing/, ...
+    routes/
+      index.tsx, ProtectedRoute.tsx
+    store/
+      authStore.ts
+    theme/
+    types/
+    utils/
+    schemas/
+
+RealEstateBackend/
+  package.json
+  render.yaml
+  src/
+    index.ts
+    app.ts
+    config/   (env.ts, database.ts, cors.ts, urls.ts)
+    constants/permissions.ts
+    controllers/
+    cron/     (marketing.cron.ts, whatsapp.cron.ts)
+    integrations/
+    middleware/ (auth.ts, upload.ts, errorHandler.ts)
+    models/   (Contact, User, Organization, WhatsApp*, Marketing*, Lead*, ...)
+    repositories/
+    routes/
+    scripts/  (seed, syncRolePermissions)
+    services/ (contact*, WhatsAppService, marketing/, ...)
+    utils/    (jwt, response, pagination, encryption, logger, errors, autoIncrement)
+
+================================================================================
+24. RECOMMENDED INTEGRATION POINTS
+================================================================================
+
+(Based only on existing code; no implementation.)
+
+FRONTEND:
+Existing contact page:
+  src/pages/contacts/ContactsPage.tsx
+  src/components/contacts/ImportContactsDrawer.tsx
+Recommended Google Contacts import:
+  Extend ImportContactsDrawer or add GoogleContactsImportDrawer under src/components/contacts/
+  Wire via contacts.service.ts + optionally new ENDPOINTS.CONTACTS.GOOGLE_IMPORT
+  Reuse Contact types in src/types/contact.ts
+
+Existing WhatsApp UI:
+  src/components/marketing/WhatsAppTab.tsx
+  src/components/marketing/WhatsAppConfiguration.tsx
+  src/components/whatsapp/*
+Recommended WhatsApp bulk campaign UI:
+  Prefer extending Marketing Hub WhatsApp tab BUT bind to /whatsapp/campaigns (WhatsAppCampaign), not MarketingCampaign
+  Add endpoints in src/api/endpoints.ts for auth-url, connect, templates/sync, campaigns, conversations
+  Expand src/api/services/whatsapp.service.ts (or new whatsappCampaign.service.ts) to match backend
+
+BACKEND:
+Existing contact routes:
+  src/routes/contacts.routes.ts
+Recommended Google import:
+  Add routes beside existing import (e.g. /contacts/import/google) using contact.service create/findContactByPhone
+  Or extend contact-import.service with a Google payload importer
+
+Existing WhatsApp:
+  src/routes/whatsapp.routes.ts
+  src/services/WhatsAppService.ts
+  src/controllers/WhatsAppController.ts
+Recommended campaigns:
+  Extend existing createCampaign/executeCampaign rather than new parallel system
+  MUST call startWhatsAppCronJobs() from index.ts OR replace with real queue
+  Consider requirePermission for campaign send (marketing.manage or new permission)
+
+DATABASE:
+Existing Contact — EXTEND (do not duplicate)
+Existing WhatsAppCampaign / Recipient / MetaTemplate — REUSE
+Optional: add contactId when creating recipients from CRM contacts
+Optional: add googleResourceName / externalIds only if needed — not present today
+
+QUEUE:
+Existing: node-cron whatsapp.cron.ts (unwired)
+Recommended: wire startWhatsAppCronJobs(); add rate limiting inside executeCampaign; Redis/Bull only if product requires horizontal scale (not present now)
+
+WEBHOOK:
+Existing WebhookController — extend status handlers for campaign recipient updates if not already linked
+
+AUTH:
+Use authenticate + preferably requirePermission(MARKETING_MANAGE or new whatsapp permission)
+Always use req.auth.organizationId
+
+================================================================================
+25. POTENTIAL CONFLICTS
+================================================================================
+
+1. Two campaign systems: MarketingCampaign vs WhatsAppCampaign — frontend WhatsAppTab currently uses marketing campaign status vocabulary.
+2. Two template systems: WhatsAppTemplate (local message) vs WhatsAppMetaTemplate (Meta approved) — campaigns need Meta templates.
+3. Legacy whatsapp.controller/service vs WhatsAppController/WhatsAppService — risk of editing the wrong file.
+4. Organization.settings.whatsapp vs WhatsAppAccount model — dual configuration sources.
+5. WhatsApp cron not started — queued campaigns may never send.
+6. No Redis/Bull — large blasts inside HTTP request will timeout/rate-limit against Meta.
+7. Phone exact-match duplicates — Google import formats (+91 vs 91 vs 0-prefixed) will create duplicates unless normalized.
+8. Contact.phone not unique at DB level — race conditions possible on concurrent imports.
+9. Frontend ENDPOINTS.WHATSAPP incomplete vs backend routes.
+10. Vite proxy targets :4000 while backend env default PORT 3000 and api client default :3000 — local port confusion.
+11. Frontend package scripts --prefix RealEstateBackend assume nested folder; actual backend is sibling Desktop path.
+12. WhatsApp routes lack requirePermission — any authenticated role could hit campaigns if UI exposed.
+13. businessId unique globally on WhatsAppAccount — one Meta business cannot connect to two orgs.
+14. Numeric IDs everywhere — do not introduce ObjectId for new related models without strong reason.
+15. env.ts does not validate all WHATSAPP_* / ENCRYPTION_KEY vars — misconfig fails late at runtime.
+
+================================================================================
+26. MISSING / UNKNOWN
+================================================================================
+
+## MISSING / UNKNOWN
+
+- Production MongoDB hosting provider (Atlas vs other) — only MONGODB_URI name known
+- Production Redis — NOT FOUND / not used
+- Exact Meta App ID ownership, WABA ownership, Embedded Signup configuration in Meta dashboard — cannot be determined from source beyond env var names
+- Whether WHATSAPP_* values in any local .env are valid — values intentionally not read into this document
+- Whether startWhatsAppCronJobs was omitted intentionally or by oversight
+- Frontend production hosting platform (Vercel/etc.) — only domain crm.durgaproperty.com known from render.yaml
+- Presence/absence of GitHub Actions CI — not confirmed comprehensively
+- Whether Google Contacts API OAuth scopes already exist — Google OAuth in marketing is for Google Business, not Contacts API (Google Contacts import NOT FOUND)
+- Full WebhookController delivery->campaign recipient linkage details — inspect before assuming complete
+- Zod error mapping to 400 responses — may be incomplete
+- Refresh token / long-lived Meta token refresh implementation — cron TODO
+- Country-code / E.164 canonicalization rules — none found
+- Whether multiple WhatsApp phone numbers per organization are supported in practice (schema allows queries by org; uniqueness constraints on phoneNumberId/businessId suggest careful handling)
+- Node version used in Render runtime beyond engines >=20
+- Whether nested RealEstateBackend under CRM still exists or is stale
+
+================================================================================
+27. FINAL SUMMARY
+================================================================================
+
+## EXISTING STACK
+
+Frontend: React 19 + Vite 8 + TypeScript + MUI 6 + TanStack Query + Zustand + Axios
+Backend: Express 5 + TypeScript + Mongoose 8 + Zod + JWT + multer + xlsx + node-cron
+Database: MongoDB
+ORM/ODM: Mongoose (numeric auto-increment IDs)
+Authentication: JWT Bearer (access token); role permissions
+API: REST /api/v1 JSON envelopes
+Queue: NOT FOUND (node-cron only; WhatsApp cron unwired)
+Redis: NOT FOUND
+Storage: Local disk (marketing uploads) + memory multer buffers; no S3 found
+Deployment: Backend Render; Frontend domain crm.durgaproperty.com; local Docker Mongo
+
+## EXISTING RELEVANT MODULES
+
+Contacts: FULL (model, API, UI, Excel import)
+Users: FULL
+Organizations: FULL (multi-tenant root)
+WhatsApp: BACKEND SUBSTANTIAL (account, templates Meta+local, send, conversations, campaigns, webhooks); FRONTEND PARTIAL
+File Upload: multer (contacts import, marketing, property images)
+Excel/CSV: xlsx contact import preview/import
+Queues: NOT FOUND
+Webhooks: WhatsApp webhook routes + WebhookController + WhatsAppWebhookLog
+
+## RECOMMENDED EXTENSION POINTS
+
+Frontend: contacts import components + Marketing Hub WhatsApp tab + expand whatsapp.service/endpoints
+Backend: contacts.routes/import services + whatsapp.routes/WhatsAppService campaigns + wire whatsapp.cron
+Database: reuse Contact + WhatsAppCampaign/Recipient/MetaTemplate
+Queue: start existing node-cron processor; add rate limits; introduce Redis only if required later
+Webhook: extend existing /webhooks/whatsapp
+Authentication: authenticate + requirePermission; org from JWT
+
+## CRITICAL NOTES FOR IMPLEMENTATION
+
+1. Tenant key is organizationId from JWT — never trust client org ids.
+2. Reuse Contact for Google Contacts import; do not create a second contact system.
+3. WhatsApp bulk sending already has models/routes/services — extend them; avoid a third campaign model.
+4. Distinguish MarketingCampaign from WhatsAppCampaign and WhatsAppTemplate from WhatsAppMetaTemplate.
+5. Wire startWhatsAppCronJobs() or campaigns will sit forever in queued/draft.
+6. There is no Redis/Bull today — design around cron + rate-limited executeCampaign or add infrastructure explicitly.
+7. Encrypt WhatsApp tokens with ENCRYPTION_KEY; never write secrets into code or this snapshot.
+8. Phone matching is exact-string — Google import must define normalization or duplicates will explode.
+9. Frontend API surface for WhatsApp is behind backend capabilities — expand endpoints/services before building UI.
+10. Follow existing response envelope, numeric IDs, soft-delete filters, MUI patterns, and permission constants conventions.
+
+END OF CRM_TECHNICAL_SNAPSHOT
