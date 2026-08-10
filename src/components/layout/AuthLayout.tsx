@@ -1,5 +1,4 @@
 import { Box, Link, Typography } from '@mui/material'
-import ApartmentRoundedIcon from '@mui/icons-material/ApartmentRounded'
 import PeopleAltRoundedIcon from '@mui/icons-material/PeopleAltRounded'
 import TrendingUpRoundedIcon from '@mui/icons-material/TrendingUpRounded'
 import HomeWorkRoundedIcon from '@mui/icons-material/HomeWorkRounded'
