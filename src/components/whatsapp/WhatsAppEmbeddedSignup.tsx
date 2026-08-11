@@ -484,10 +484,9 @@ export default function WhatsAppEmbeddedSignup({
        */
 
       if (
-        data.event !==
-          'FINISH' &&
-        data.event !==
-          'FINISH_ONLY_WABA'
+        data.event !== 'FINISH' &&
+        data.event !== 'FINISH_ONLY_WABA' &&
+        data.event !== 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING'
       ) {
         return
       }
@@ -855,12 +854,15 @@ export default function WhatsAppEmbeddedSignup({
           override_default_response_type:
             true,
 
-          extras: {
-            setup: {},
-
-            sessionInfoVersion:
-              '3',
-          },
+            extras: {
+              setup: {},
+            
+              featureType:
+                'whatsapp_business_app_onboarding',
+            
+              sessionInfoVersion:
+                '3',
+            },
         },
       )
 
