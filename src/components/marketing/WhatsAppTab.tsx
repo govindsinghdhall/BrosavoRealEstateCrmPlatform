@@ -19,6 +19,7 @@ import { whatsappService } from '@/api/services/whatsapp.service'
 import { EmptyState } from '@/components/common/EmptyState'
 import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined'
 import { WhatsAppCampaignDrawer } from '@/components/whatsapp/WhatsAppCampaignDrawer'
+import { WhatsAppConfiguration } from './WhatsAppConfiguration'
 
 const statusColor: Record<
   string,
@@ -53,50 +54,154 @@ export function WhatsAppTab({
   onCampaignCreated,
 }: WhatsAppTabProps) {
   const [drawerOpen, setDrawerOpen] = useState(false)
+
+  const [whatsappView, setWhatsappView] = useState<
+    'campaigns' | 'settings'
+  >('campaigns')
+
   const queryClient = useQueryClient()
 
-  // Check WhatsApp connection status.
-  // The actual connection/settings UI will live in
-  // the new WhatsApp Settings page.
   const { data: settings } = useQuery({
     queryKey: ['whatsapp-settings'],
     queryFn: () => whatsappService.getSettings(),
   })
 
-  if (!settings?.isConnected) {
-    return (
-      <MarketingSection title="WhatsApp Campaigns">
-        <MarketingCard hover={false}>
-          <Box
-            sx={{
-              py: 6,
-              textAlign: 'center',
-            }}
-          >
-            <Typography
-              variant="h6"
-              fontWeight={700}
-              gutterBottom
-            >
-              WhatsApp is not connected
-            </Typography>
+  // ============================================================
+  // SETTINGS VIEW
+  // ============================================================
 
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{ maxWidth: 480, mx: 'auto' }}
-            >
-              Connect your WhatsApp Business account from
-              WhatsApp Settings before creating campaigns.
-            </Typography>
-          </Box>
-        </MarketingCard>
-      </MarketingSection>
+  if (whatsappView === 'settings') {
+    return (
+      <Box>
+        <Box
+          sx={{
+            display: 'flex',
+            gap: 1,
+            mb: 3,
+          }}
+        >
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => setWhatsappView('campaigns')}
+          >
+            Campaigns
+          </Button>
+
+          <Button
+            variant="contained"
+            size="small"
+          >
+            Settings
+          </Button>
+        </Box>
+
+        <WhatsAppConfiguration />
+      </Box>
     )
   }
 
+  // ============================================================
+  // WHATSAPP NOT CONNECTED
+  // ============================================================
+
+  if (!settings?.isConnected) {
+    return (
+      <Box>
+        <Box
+          sx={{
+            display: 'flex',
+            gap: 1,
+            mb: 3,
+          }}
+        >
+          <Button
+            variant="contained"
+            size="small"
+          >
+            Campaigns
+          </Button>
+
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => setWhatsappView('settings')}
+          >
+            Settings
+          </Button>
+        </Box>
+
+        <MarketingSection title="WhatsApp Campaigns">
+          <MarketingCard hover={false}>
+            <Box
+              sx={{
+                py: 6,
+                textAlign: 'center',
+              }}
+            >
+              <Typography
+                variant="h6"
+                fontWeight={700}
+                gutterBottom
+              >
+                WhatsApp is not connected
+              </Typography>
+
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{
+                  maxWidth: 480,
+                  mx: 'auto',
+                }}
+              >
+                Connect your WhatsApp Business account from
+                WhatsApp Settings before creating campaigns.
+              </Typography>
+
+              <Button
+                variant="contained"
+                sx={{ mt: 3 }}
+                onClick={() => setWhatsappView('settings')}
+              >
+                Connect WhatsApp
+              </Button>
+            </Box>
+          </MarketingCard>
+        </MarketingSection>
+      </Box>
+    )
+  }
+
+  // ============================================================
+  // CAMPAIGNS VIEW
+  // ============================================================
+
   return (
     <Box>
+      <Box
+        sx={{
+          display: 'flex',
+          gap: 1,
+          mb: 3,
+        }}
+      >
+        <Button
+          variant="contained"
+          size="small"
+        >
+          Campaigns
+        </Button>
+
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={() => setWhatsappView('settings')}
+        >
+          Settings
+        </Button>
+      </Box>
+
       <MarketingSection
         title="WhatsApp Campaigns"
         action={
@@ -110,7 +215,10 @@ export function WhatsAppTab({
           </Button>
         }
       >
-        <MarketingCard hover={false} padding={0}>
+        <MarketingCard
+          hover={false}
+          padding={0}
+        >
           {!loadingCampaigns && campaigns.length === 0 ? (
             <EmptyState
               icon={CampaignOutlinedIcon}
@@ -146,10 +254,11 @@ export function WhatsAppTab({
                   {campaigns.map((campaign) => {
                     const progress =
                       campaign.stats?.total > 0
-                        ? ((campaign.stats.sent +
-                            campaign.stats.failed) /
-                            campaign.stats.total) *
-                          100
+                        ? (
+                            (campaign.stats.sent +
+                              campaign.stats.failed) /
+                            campaign.stats.total
+                          ) * 100
                         : 0
 
                     return (

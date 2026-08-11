@@ -23,8 +23,17 @@ export const ENDPOINTS = {
   },
   WHATSAPP: {
     SETTINGS: '/whatsapp/settings',
+  
+    AUTH_URL: '/whatsapp/auth-url',
+    CONNECT: '/whatsapp/connect',
+    DISCONNECT: '/whatsapp/disconnect',
+    REFRESH: '/whatsapp/refresh',
+    EMBEDDED_SIGNUP: '/whatsapp/embedded-signup',
+  
     TEMPLATES: '/whatsapp/templates',
-    TEMPLATE_BY_ID: (id: number | string) => `/whatsapp/templates/${id}`,
+    TEMPLATE_BY_ID: (id: number | string) =>
+      `/whatsapp/templates/${id}`,
+  
     SEND: '/whatsapp/send',
   },
   PROPERTIES: {

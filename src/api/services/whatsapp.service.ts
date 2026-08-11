@@ -1,50 +1,125 @@
-import type { ApiEnvelope } from '../types/backend'
+import type { ApiEnvelope } from "../types/backend";
 import type {
   WhatsAppSendPayload,
   WhatsAppSendResult,
   WhatsAppSettings,
   WhatsAppTemplate,
   WhatsAppTemplatePayload,
-} from '@/types'
-import { apiClient } from '../client'
-import { ENDPOINTS } from '../endpoints'
-import { unwrap } from '../utils/response'
+} from "@/types";
+import { apiClient } from "../client";
+import { ENDPOINTS } from "../endpoints";
+import { unwrap } from "../utils/response";
+
+interface WhatsAppAuthUrlResponse {
+  url: string;
+}
+
+interface WhatsAppRefreshResponse {
+  refreshed: boolean;
+}
 
 export const whatsappService = {
   async getSettings(): Promise<WhatsAppSettings> {
-    const { data } = await apiClient.get<ApiEnvelope<WhatsAppSettings>>(ENDPOINTS.WHATSAPP.SETTINGS)
-    return unwrap(data)
+    const { data } = await apiClient.get<ApiEnvelope<WhatsAppSettings>>(
+      ENDPOINTS.WHATSAPP.SETTINGS,
+    );
+
+    return unwrap(data);
   },
 
   async updateSettings(settings: WhatsAppSettings): Promise<WhatsAppSettings> {
     const { data } = await apiClient.patch<ApiEnvelope<WhatsAppSettings>>(
       ENDPOINTS.WHATSAPP.SETTINGS,
       settings,
-    )
-    return unwrap(data)
+    );
+
+    return unwrap(data);
   },
+
+  // ============================================================
+  // META WHATSAPP CONNECTION
+  // ============================================================
+
+  async getAuthUrl(): Promise<WhatsAppAuthUrlResponse> {
+    const { data } = await apiClient.get<ApiEnvelope<WhatsAppAuthUrlResponse>>(
+      ENDPOINTS.WHATSAPP.AUTH_URL,
+    );
+
+    return unwrap(data);
+  },
+
+  async disconnect(): Promise<void> {
+    await apiClient.post(ENDPOINTS.WHATSAPP.DISCONNECT);
+  },
+
+  async refresh(): Promise<WhatsAppRefreshResponse> {
+    const { data } = await apiClient.post<ApiEnvelope<WhatsAppRefreshResponse>>(
+      ENDPOINTS.WHATSAPP.REFRESH,
+    );
+
+    return unwrap(data);
+  },
+
+  async completeEmbeddedSignup(code: string): Promise<WhatsAppSettings> {
+    const { data } = await apiClient.post<ApiEnvelope<WhatsAppSettings>>(
+      ENDPOINTS.WHATSAPP.EMBEDDED_SIGNUP,
+      {
+        code,
+      },
+    );
+
+    return unwrap(data);
+  },
+
+  // ============================================================
+  // TEMPLATES
+  // ============================================================
 
   async getTemplates(): Promise<WhatsAppTemplate[]> {
-    const { data } = await apiClient.get<ApiEnvelope<WhatsAppTemplate[]>>(ENDPOINTS.WHATSAPP.TEMPLATES)
-    return unwrap(data)
+    const { data } = await apiClient.get<ApiEnvelope<WhatsAppTemplate[]>>(
+      ENDPOINTS.WHATSAPP.TEMPLATES,
+    );
+
+    return unwrap(data);
   },
 
-  async createTemplate(payload: WhatsAppTemplatePayload): Promise<WhatsAppTemplate> {
-    const { data } = await apiClient.post<ApiEnvelope<WhatsAppTemplate>>(ENDPOINTS.WHATSAPP.TEMPLATES, payload)
-    return unwrap(data)
+  async createTemplate(
+    payload: WhatsAppTemplatePayload,
+  ): Promise<WhatsAppTemplate> {
+    const { data } = await apiClient.post<ApiEnvelope<WhatsAppTemplate>>(
+      ENDPOINTS.WHATSAPP.TEMPLATES,
+      payload,
+    );
+
+    return unwrap(data);
   },
 
-  async updateTemplate(id: number, payload: WhatsAppTemplatePayload): Promise<WhatsAppTemplate> {
-    const { data } = await apiClient.put<ApiEnvelope<WhatsAppTemplate>>(ENDPOINTS.WHATSAPP.TEMPLATE_BY_ID(id), payload)
-    return unwrap(data)
+  async updateTemplate(
+    id: number,
+    payload: WhatsAppTemplatePayload,
+  ): Promise<WhatsAppTemplate> {
+    const { data } = await apiClient.put<ApiEnvelope<WhatsAppTemplate>>(
+      ENDPOINTS.WHATSAPP.TEMPLATE_BY_ID(id),
+      payload,
+    );
+
+    return unwrap(data);
   },
 
   async deleteTemplate(id: number): Promise<void> {
-    await apiClient.delete(ENDPOINTS.WHATSAPP.TEMPLATE_BY_ID(id))
+    await apiClient.delete(ENDPOINTS.WHATSAPP.TEMPLATE_BY_ID(id));
   },
 
+  // ============================================================
+  // MESSAGES
+  // ============================================================
+
   async sendMessage(payload: WhatsAppSendPayload): Promise<WhatsAppSendResult> {
-    const { data } = await apiClient.post<ApiEnvelope<WhatsAppSendResult>>(ENDPOINTS.WHATSAPP.SEND, payload)
-    return unwrap(data)
+    const { data } = await apiClient.post<ApiEnvelope<WhatsAppSendResult>>(
+      ENDPOINTS.WHATSAPP.SEND,
+      payload,
+    );
+
+    return unwrap(data);
   },
-}
+};
