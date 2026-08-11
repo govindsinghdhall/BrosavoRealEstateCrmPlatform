@@ -18,6 +18,14 @@ interface WhatsAppRefreshResponse {
   refreshed: boolean;
 }
 
+interface CompleteEmbeddedSignupPayload {
+  organizationId: number;
+  wabaId: string;
+  phoneNumberId: string;
+  businessId?: string;
+  code: string;
+}
+
 export const whatsappService = {
   async getSettings(): Promise<WhatsAppSettings> {
     const { data } = await apiClient.get<ApiEnvelope<WhatsAppSettings>>(
@@ -60,14 +68,14 @@ export const whatsappService = {
     return unwrap(data);
   },
 
-  async completeEmbeddedSignup(code: string): Promise<WhatsAppSettings> {
+  async completeEmbeddedSignup(
+    payload: CompleteEmbeddedSignupPayload,
+  ): Promise<WhatsAppSettings> {
     const { data } = await apiClient.post<ApiEnvelope<WhatsAppSettings>>(
       ENDPOINTS.WHATSAPP.EMBEDDED_SIGNUP,
-      {
-        code,
-      },
+      payload,
     );
-
+  
     return unwrap(data);
   },
 
