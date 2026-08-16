@@ -12,7 +12,7 @@ import {
 } from '@mui/material'
 
 import { whatsappService } from '@/api/services/whatsapp.service'
-import { loadMetaSDK } from '@/services/meta.service'
+import { loadMetaSDK } from '@/api/services/meta.service'
 
 interface WhatsAppEmbeddedSignupProps {
   organizationId: number
