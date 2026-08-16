@@ -1,31 +1,99 @@
 import type {
   FacebookLoginResponse,
-  FacebookLoginOptions,
+  WhatsAppEmbeddedSignupLoginOptions,
 } from '@/types/facebook'
 
 const META_SDK_ID = 'facebook-jssdk'
-
-const META_SDK_URL =
-  'https://connect.facebook.net/en_US/sdk.js'
+const META_SDK_URL = 'https://connect.facebook.net/en_US/sdk.js'
 
 let sdkPromise: Promise<void> | null = null
+let sdkInitialized = false
+
+function getMetaAppId(): string {
+  const appId = import.meta.env.VITE_META_APP_ID?.trim()
+
+  if (!appId) {
+    throw new Error('VITE_META_APP_ID is not configured')
+  }
+
+  return appId
+}
+
+function getEmbeddedSignupConfigId(): string {
+  const configId =
+    import.meta.env.VITE_WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID?.trim()
+
+  if (!configId) {
+    throw new Error(
+      'VITE_WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID is not configured.',
+    )
+  }
+
+  return configId
+}
+
+function getGraphApiVersion(): string {
+  const version = import.meta.env.VITE_META_GRAPH_API_VERSION?.trim()
+
+  if (!version) {
+    throw new Error('VITE_META_GRAPH_API_VERSION is not configured')
+  }
+
+  return version
+}
+
+function summarizeLoginResponse(response: FacebookLoginResponse | null) {
+  return {
+    status: response?.status ?? null,
+    hasAuthResponse: Boolean(response?.authResponse),
+    hasCode: Boolean(response?.authResponse?.code),
+    hasAccessToken: Boolean(response?.authResponse?.accessToken),
+    hasUserID: Boolean(response?.authResponse?.userID),
+  }
+}
+
+function detectPopupDuringLogin(run: () => void): {
+  popupAttempted: boolean
+  popupOpened: boolean
+  popupBlocked: boolean
+} {
+  const originalOpen = window.open.bind(window)
+  let popupAttempted = false
+  let popupOpened = false
+
+  window.open = ((...args: Parameters<typeof window.open>) => {
+    popupAttempted = true
+    const popup = originalOpen(...args)
+    popupOpened = Boolean(popup && !popup.closed)
+    return popup
+  }) as typeof window.open
+
+  try {
+    run()
+  } finally {
+    window.open = originalOpen
+  }
+
+  return {
+    popupAttempted,
+    popupOpened,
+    popupBlocked: popupAttempted && !popupOpened,
+  }
+}
 
 /**
  * Load and initialize the Meta Facebook JavaScript SDK.
  *
- * This should be the ONLY place where FB.init()
- * is called in the application.
+ * This is the ONLY place FB.init() should be called.
  */
 export function loadMetaSDK(): Promise<void> {
   if (typeof window === 'undefined') {
     return Promise.reject(
-      new Error(
-        'Meta Facebook SDK can only be loaded in the browser',
-      ),
+      new Error('Meta Facebook SDK can only be loaded in the browser'),
     )
   }
 
-  if (window.FB) {
+  if (sdkInitialized && window.FB) {
     return Promise.resolve()
   }
 
@@ -34,22 +102,19 @@ export function loadMetaSDK(): Promise<void> {
   }
 
   sdkPromise = new Promise<void>((resolve, reject) => {
-    const appId =
-      import.meta.env.VITE_META_APP_ID
+    let appId: string
+    let graphApiVersion: string
 
-    if (!appId) {
+    try {
+      appId = getMetaAppId()
+      graphApiVersion = getGraphApiVersion()
+    } catch (error) {
       sdkPromise = null
-
-      reject(
-        new Error(
-          'VITE_META_APP_ID is not configured',
-        ),
-      )
-
+      reject(error instanceof Error ? error : new Error(String(error)))
       return
     }
 
-    let initialized = false
+    let initializing = false
     let timeoutId: number | null = null
 
     const cleanup = () => {
@@ -60,7 +125,11 @@ export function loadMetaSDK(): Promise<void> {
     }
 
     const initializeSDK = () => {
-      if (initialized) {
+      if (sdkInitialized || initializing) {
+        if (sdkInitialized) {
+          cleanup()
+          resolve()
+        }
         return
       }
 
@@ -68,8 +137,7 @@ export function loadMetaSDK(): Promise<void> {
         return
       }
 
-      initialized = true
-
+      initializing = true
       cleanup()
 
       try {
@@ -77,64 +145,42 @@ export function loadMetaSDK(): Promise<void> {
           appId,
           cookie: true,
           xfbml: true,
-          version:
-            import.meta.env
-              .VITE_META_GRAPH_API_VERSION ||
-            'v26.0',
+          version: graphApiVersion,
         })
 
-        console.log(
-          'Facebook SDK initialized successfully.',
-        )
+        sdkInitialized = true
 
+        console.log('Facebook SDK initialized successfully.')
         resolve()
       } catch (error) {
+        initializing = false
         sdkPromise = null
-
         reject(
           error instanceof Error
             ? error
-            : new Error(
-                'Failed to initialize Meta Facebook SDK',
-              ),
+            : new Error('Failed to initialize Meta Facebook SDK'),
         )
       }
     }
 
-    /*
-     * If FB is already available, initialize immediately.
-     */
     if (window.FB) {
       initializeSDK()
       return
     }
 
-    /*
-     * Preserve an existing fbAsyncInit callback.
-     */
-    const previousFbAsyncInit =
-      window.fbAsyncInit
+    const previousFbAsyncInit = window.fbAsyncInit
 
     window.fbAsyncInit = () => {
       try {
         previousFbAsyncInit?.()
       } catch (error) {
-        console.warn(
-          'Previous fbAsyncInit callback failed:',
-          error,
-        )
+        console.warn('Previous fbAsyncInit callback failed:', error)
       }
 
       initializeSDK()
     }
 
-    /*
-     * Check whether the SDK script already exists.
-     */
-    const existingScript =
-      document.getElementById(
-        META_SDK_ID,
-      )
+    const existingScript = document.getElementById(META_SDK_ID)
 
     if (existingScript) {
       console.log(
@@ -149,44 +195,26 @@ export function loadMetaSDK(): Promise<void> {
           return
         }
 
-        /*
-         * Prevent an infinite polling loop.
-         */
         if (Date.now() - startedAt > 15000) {
           sdkPromise = null
-
           reject(
             new Error(
               'Facebook SDK did not initialize within 15 seconds.',
             ),
           )
-
           return
         }
 
-        window.setTimeout(
-          checkSDK,
-          100,
-        )
+        window.setTimeout(checkSDK, 100)
       }
 
       checkSDK()
-
       return
     }
 
-    /*
-     * Load the Facebook SDK.
-     */
-    console.log(
-      'Loading Facebook SDK...',
-    )
+    console.log('Loading Facebook SDK...')
 
-    const script =
-      document.createElement(
-        'script',
-      )
-
+    const script = document.createElement('script')
     script.id = META_SDK_ID
     script.src = META_SDK_URL
     script.async = true
@@ -194,17 +222,8 @@ export function loadMetaSDK(): Promise<void> {
     script.crossOrigin = 'anonymous'
 
     script.onload = () => {
-      console.log(
-        'Facebook SDK script loaded.',
-      )
+      console.log('Facebook SDK script loaded.')
 
-      /*
-       * Normally fbAsyncInit will initialize
-       * the SDK.
-       *
-       * This is a fallback in case the callback
-       * has already fired.
-       */
       if (window.FB) {
         initializeSDK()
       }
@@ -212,30 +231,15 @@ export function loadMetaSDK(): Promise<void> {
 
     script.onerror = () => {
       sdkPromise = null
-
-      reject(
-        new Error(
-          'Unable to load Meta Facebook SDK.',
-        ),
-      )
+      reject(new Error('Unable to load Meta Facebook SDK.'))
     }
 
-    document.body.appendChild(
-      script,
-    )
+    document.body.appendChild(script)
 
-    /*
-     * Safety timeout.
-     */
     timeoutId = window.setTimeout(() => {
-      if (!initialized) {
+      if (!sdkInitialized) {
         sdkPromise = null
-
-        reject(
-          new Error(
-            'Facebook SDK initialization timed out.',
-          ),
-        )
+        reject(new Error('Facebook SDK initialization timed out.'))
       }
     }, 15000)
   })
@@ -243,9 +247,6 @@ export function loadMetaSDK(): Promise<void> {
   return sdkPromise
 }
 
-/**
- * Information sent by Meta during WhatsApp Embedded Signup.
- */
 export interface WhatsAppEmbeddedSignupMessage {
   type: 'WA_EMBEDDED_SIGNUP'
   event?: string
@@ -253,18 +254,26 @@ export interface WhatsAppEmbeddedSignupMessage {
     phone_number_id?: string
     waba_id?: string
     business_id?: string
+    error_message?: string
+    error_code?: string
     [key: string]: unknown
   }
   [key: string]: unknown
 }
 
+function isMetaMessageOrigin(origin: string): boolean {
+  return (
+    origin === 'https://www.facebook.com' ||
+    origin === 'https://facebook.com' ||
+    origin === 'https://web.facebook.com'
+  )
+}
+
 /**
- * Launch WhatsApp Embedded Signup.
+ * Launch WhatsApp Embedded Signup (authorization-code flow).
  *
- * Embedded Signup uses an authorization CODE.
- *
- * The authorization code should be sent to the backend.
- * Do NOT store a permanent Meta access token in the browser.
+ * The authorization code must be sent to the backend.
+ * Do not treat FB.login accessToken as the WhatsApp credential.
  */
 export async function launchWhatsAppSignup(
   onSuccess: (code: string) => void,
@@ -274,85 +283,49 @@ export async function launchWhatsAppSignup(
   try {
     await loadMetaSDK()
 
-    console.log(
-      'Facebook SDK ready.',
-    )
-
-    const configId =
-      import.meta.env
-        .VITE_WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID
-
-    if (!configId) {
-      throw new Error(
-        'VITE_WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID is not configured.',
-      )
-    }
+    const appId = getMetaAppId()
+    const configId = getEmbeddedSignupConfigId()
+    const graphApiVersion = getGraphApiVersion()
 
     if (!window.FB) {
-      throw new Error(
-        'Meta Facebook SDK is not available.',
-      )
+      throw new Error('Meta Facebook SDK is not available.')
     }
 
+    console.log('====================================')
+    console.log('WhatsApp Embedded Signup: START')
+    console.log('META_APP_ID:', appId)
+    console.log('META_CONFIG_ID:', configId)
+    console.log('META_GRAPH_API_VERSION:', graphApiVersion)
+    console.log('window.origin:', window.location.origin)
+    console.log('window.location.href:', window.location.href)
+    console.log('window.FB exists:', Boolean(window.FB))
     console.log(
-      '====================================',
+      'FB.getLoginStatus exists:',
+      typeof window.FB.getLoginStatus === 'function',
     )
+    console.log('====================================')
 
-    console.log(
-      'WhatsApp Embedded Signup: START',
-    )
+    let settled = false
+    let messageHandler: (event: MessageEvent) => void = () => undefined
 
-    console.log(
-      'META_APP_ID:',
-      import.meta.env.VITE_META_APP_ID,
-    )
+    const settle = (action: () => void) => {
+      if (settled) {
+        return
+      }
 
-    console.log(
-      'META_CONFIG_ID:',
-      configId,
-    )
+      settled = true
+      window.removeEventListener('message', messageHandler)
+      action()
+    }
 
-    console.log(
-      'META_GRAPH_API_VERSION:',
-      import.meta.env
-        .VITE_META_GRAPH_API_VERSION ||
-        'v26.0',
-    )
-
-    console.log(
-      '====================================',
-    )
-
-    /*
-     * Listen for Meta's Embedded Signup
-     * postMessage events.
-     *
-     * Meta sends onboarding information such as
-     * WABA ID and phone number ID through this event.
-     */
-    const messageHandler = (
-      event: MessageEvent,
-    ) => {
-      /*
-       * Only accept messages from Meta.
-       */
-      if (
-        event.origin !==
-          'https://www.facebook.com' &&
-        event.origin !==
-          'https://facebook.com'
-      ) {
+    messageHandler = (event: MessageEvent) => {
+      if (!isMetaMessageOrigin(event.origin)) {
         return
       }
 
       let data: unknown = event.data
 
-      /*
-       * Meta may send the data as a JSON string.
-       */
-      if (
-        typeof data === 'string'
-      ) {
+      if (typeof data === 'string') {
         try {
           data = JSON.parse(data)
         } catch {
@@ -360,274 +333,152 @@ export async function launchWhatsAppSignup(
         }
       }
 
-      if (
-        !data ||
-        typeof data !== 'object'
-      ) {
+      if (!data || typeof data !== 'object') {
         return
       }
 
-      const signupData =
-        data as Partial<WhatsAppEmbeddedSignupMessage>
+      const signupData = data as Partial<WhatsAppEmbeddedSignupMessage>
 
-      if (
-        signupData.type !==
-        'WA_EMBEDDED_SIGNUP'
-      ) {
+      if (signupData.type !== 'WA_EMBEDDED_SIGNUP') {
         return
       }
 
+      console.log('WA_EMBEDDED_SIGNUP event:', signupData.event ?? null)
       console.log(
-        '====================================',
+        'WA_EMBEDDED_SIGNUP has data:',
+        Boolean(signupData.data),
       )
 
-      console.log(
-        'WA_EMBEDDED_SIGNUP MESSAGE:',
-        signupData,
-      )
-
-      console.log(
-        '===================================='
-
-      )
-
-      /*
-       * You can use these values later to
-       * complete the onboarding on your backend.
-       */
-      if (signupData.event) {
-        console.log(
-          'WhatsApp Embedded Signup event:',
-          signupData.event,
-        )
+      if (signupData.event === 'CANCEL') {
+        settle(() => {
+          onCancel?.()
+        })
+        return
       }
 
-      if (signupData.data) {
-        console.log(
-          'WhatsApp Embedded Signup data:',
-          signupData.data,
-        )
+      if (signupData.event === 'ERROR') {
+        const metaError =
+          typeof signupData.data?.error_message === 'string'
+            ? signupData.data.error_message
+            : 'Meta WhatsApp Embedded Signup returned an error.'
+
+        settle(() => {
+          onError?.(new Error(metaError))
+        })
       }
     }
 
-    window.addEventListener(
-      'message',
-      messageHandler,
-    )
+    window.addEventListener('message', messageHandler)
 
-    /*
-     * Embedded Signup configuration.
-     *
-     * IMPORTANT:
-     * response_type MUST be "code".
-     */
-    const options = {
+    const options: WhatsAppEmbeddedSignupLoginOptions = {
       config_id: configId,
-
       response_type: 'code',
-
-      override_default_response_type:
-        true,
-
+      override_default_response_type: true,
       extras: {
         setup: {},
-
-        featureType:
-          'whatsapp_business_app_onboarding',
-
+        featureType: '',
         sessionInfoVersion: '3',
       },
-    } as FacebookLoginOptions
+    }
 
-    console.log(
-      'Calling window.FB.login()...',
-    )
+    let callbackCalled = false
 
-    window.FB.login(
-      (
-        response: FacebookLoginResponse,
-      ) => {
+    console.log('Calling window.FB.login()...')
+
+    const popup = detectPopupDuringLogin(() => {
+      window.FB!.login((response: FacebookLoginResponse) => {
+        callbackCalled = true
+
+        console.log('====================================')
+        console.log('FB.login CALLBACK')
+        console.log('callbackCalled:', true)
+        console.log('response.status:', response?.status ?? null)
         console.log(
-          '====================================',
+          'response summary:',
+          summarizeLoginResponse(response ?? null),
         )
+        console.log('====================================')
 
-        console.log(
-          'FB.login CALLBACK',
-        )
-
-        console.log(
-          'FULL META LOGIN RESPONSE:',
-          response,
-        )
-
-        console.log(
-          '====================================',
-        )
-
-        /*
-         * No response at all.
-         */
         if (!response) {
-          console.error(
-            'Meta did not return a response.',
-          )
-
-          window.removeEventListener(
-            'message',
-            messageHandler,
-          )
-
-          onError?.(
-            new Error(
-              'Meta did not return a response.',
-            ),
-          )
-
+          settle(() => {
+            onError?.(new Error('Meta did not return a response.'))
+          })
           return
         }
 
-        /*
-         * Log status separately.
-         */
-        console.log(
-          'META LOGIN STATUS:',
-          response.status,
-        )
-
-        console.log(
-          'META AUTH RESPONSE:',
-          response.authResponse,
-        )
-
-        /*
-         * Meta did not authorize the request.
-         */
-        if (
-          !response.authResponse
-        ) {
-          console.warn(
-            'Meta FB.login returned no authResponse.',
-            response,
-          )
-
-          window.removeEventListener(
-            'message',
-            messageHandler,
-          )
-
-          /*
-           * "unknown" means the login flow did not
-           * complete. This can happen because:
-           *
-           * - user closed/cancelled the dialog
-           * - Embedded Signup could not start
-           * - Meta configuration rejected the flow
-           * - popup/iframe communication failed
-           */
-          if (
-            response.status ===
-            'unknown'
-          ) {
-            onCancel?.()
+        if (!response.authResponse) {
+          if (response.status === 'unknown') {
+            settle(() => {
+              onError?.(
+                new Error(
+                  'Meta FB.login returned status unknown. The authorization flow did not complete.',
+                ),
+              )
+            })
             return
           }
 
-          onError?.(
-            new Error(
-              `Meta login failed with status: ${response.status || 'unknown'}.`,
-            ),
-          )
+          if (
+            response.status === 'not_authorized' ||
+            response.status === ''
+          ) {
+            settle(() => {
+              onCancel?.()
+            })
+            return
+          }
 
+          settle(() => {
+            onError?.(
+              new Error(
+                `Meta login failed with status: ${response.status || 'unknown'}.`,
+              ),
+            )
+          })
           return
         }
 
-        /*
-         * Embedded Signup returns an authorization
-         * CODE instead of the permanent access token.
-         */
-        const authResponse =
-          response.authResponse as
-            | {
-                accessToken?: string
-                code?: string
-                userID?: string
-                expiresIn?: number
-                signedRequest?: string
-              }
-            | undefined
+        const code = response.authResponse.code
 
-        const code =
-          authResponse?.code
-
+        console.log('Authorization code received:', Boolean(code))
         console.log(
-          'Authorization code received:',
-          Boolean(code),
+          'Access token received:',
+          Boolean(response.authResponse.accessToken),
         )
 
-        /*
-         * We expect a code.
-         */
         if (!code) {
-          console.error(
-            'Meta returned authResponse but no authorization code.',
-            response,
-          )
-
-          window.removeEventListener(
-            'message',
-            messageHandler,
-          )
-
-          onError?.(
-            new Error(
-              'Meta did not return an authorization code.',
-            ),
-          )
-
+          settle(() => {
+            onError?.(
+              new Error('Meta did not return an authorization code.'),
+            )
+          })
           return
         }
 
-        console.log(
-          'Meta authorization code received successfully.',
-        )
+        settle(() => {
+          onSuccess(code)
+        })
+      }, options)
+    })
 
-        /*
-         * IMPORTANT:
-         *
-         * Send this code to your backend.
-         *
-         * The backend should perform the required
-         * Meta onboarding/token exchange.
-         */
-        onSuccess(code)
+    console.log('FB.login() called successfully.')
+    console.log('popupAttempted:', popup.popupAttempted)
+    console.log('popupOpened:', popup.popupOpened)
+    console.log('popupBlocked:', popup.popupBlocked)
+    console.log('callbackCalled immediately:', callbackCalled)
 
-        /*
-         * We no longer need the listener after
-         * successful authorization.
-         */
-        window.removeEventListener(
-          'message',
-          messageHandler,
-        )
-      },
-      options,
-    )
-
-    console.log(
-      'FB.login() called successfully.',
-    )
+    if (popup.popupBlocked) {
+      console.warn(
+        'Meta login popup appears to have been blocked by the browser.',
+      )
+    }
   } catch (error) {
-    console.error(
-      'Failed to launch WhatsApp Embedded Signup:',
-      error,
-    )
+    console.error('Failed to launch WhatsApp Embedded Signup:', error)
 
     onError?.(
       error instanceof Error
         ? error
-        : new Error(
-            'Failed to launch WhatsApp Embedded Signup.',
-          ),
+        : new Error('Failed to launch WhatsApp Embedded Signup.'),
     )
   }
 }

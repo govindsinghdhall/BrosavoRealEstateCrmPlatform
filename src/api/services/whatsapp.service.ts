@@ -19,11 +19,21 @@ interface WhatsAppRefreshResponse {
 }
 
 interface CompleteEmbeddedSignupPayload {
-  organizationId: number;
-  wabaId: string;
-  phoneNumberId: string;
-  businessId?: string;
   code: string;
+}
+
+interface CompleteEmbeddedSignupResult {
+  connected: boolean;
+  account?: {
+    businessName?: string;
+    displayName?: string;
+    phoneNumber?: string;
+    phoneNumberId?: string;
+    businessId?: string;
+    wabaId?: string;
+    isConnected?: boolean;
+    webhookVerified?: boolean;
+  };
 }
 
 export const whatsappService = {
@@ -70,12 +80,11 @@ export const whatsappService = {
 
   async completeEmbeddedSignup(
     payload: CompleteEmbeddedSignupPayload,
-  ): Promise<WhatsAppSettings> {
-    const { data } = await apiClient.post<ApiEnvelope<WhatsAppSettings>>(
-      ENDPOINTS.WHATSAPP.EMBEDDED_SIGNUP,
-      payload,
-    );
-  
+  ): Promise<CompleteEmbeddedSignupResult> {
+    const { data } = await apiClient.post<
+      ApiEnvelope<CompleteEmbeddedSignupResult>
+    >(ENDPOINTS.WHATSAPP.EMBEDDED_SIGNUP, payload);
+
     return unwrap(data);
   },
 
