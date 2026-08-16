@@ -41,10 +41,10 @@ const META_APP_ID =
   import.meta.env.VITE_META_APP_ID
 
 const META_CONFIG_ID =
-  import.meta.env.VITE_META_WHATSAPP_CONFIG_ID
+  import.meta.env.VITE_WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID
 
 const META_GRAPH_API_VERSION =
-  import.meta.env.VITE_META_GRAPH_API_VERSION || 'v25.0'
+  import.meta.env.VITE_META_GRAPH_API_VERSION || 'v26.0'
 
 const CODE_STORAGE_KEY =
   'whatsapp_embedded_signup_code'
