@@ -1,11 +1,18 @@
-import { useEffect, useRef, useState } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
+
 import {
   Alert,
   Box,
   Button,
   CircularProgress,
 } from '@mui/material'
+
 import { whatsappService } from '@/api/services/whatsapp.service'
+import { loadMetaSDK } from '@/services/meta.service'
 
 interface WhatsAppEmbeddedSignupProps {
   organizationId: number
@@ -30,10 +37,14 @@ interface SignupData {
 interface MetaSignupMessage {
   type?: string
   event?: string
+
   data?: {
     waba_id?: string
     phone_number_id?: string
     business_id?: string
+
+    error_message?: string
+    error_code?: string
   }
 }
 
@@ -41,10 +52,8 @@ const META_APP_ID =
   import.meta.env.VITE_META_APP_ID
 
 const META_CONFIG_ID =
-  import.meta.env.VITE_WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID
-
-const META_GRAPH_API_VERSION =
-  import.meta.env.VITE_META_GRAPH_API_VERSION || 'v26.0'
+  import.meta.env
+    .VITE_WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID
 
 const CODE_STORAGE_KEY =
   'whatsapp_embedded_signup_code'
@@ -57,12 +66,26 @@ export default function WhatsAppEmbeddedSignup({
   onSuccess,
   onError,
 }: WhatsAppEmbeddedSignupProps) {
-  const [sdkReady, setSdkReady] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [
+    sdkReady,
+    setSdkReady,
+  ] = useState(false)
 
-  const completingRef = useRef(false)
-  const timeoutRef = useRef<number | null>(null)
+  const [
+    loading,
+    setLoading,
+  ] = useState(false)
+
+  const [
+    error,
+    setError,
+  ] = useState('')
+
+  const completingRef =
+    useRef(false)
+
+  const timeoutRef =
+    useRef<number | null>(null)
 
   /*
    * ============================================================
@@ -80,7 +103,9 @@ export default function WhatsAppEmbeddedSignup({
     )
   }
 
-  const showError = (message: string) => {
+  const showError = (
+    message: string,
+  ) => {
     console.error(
       'WhatsApp Embedded Signup:',
       message,
@@ -88,7 +113,21 @@ export default function WhatsAppEmbeddedSignup({
 
     setLoading(false)
     setError(message)
+
     onError?.(message)
+  }
+
+  const clearTimeoutTimer = () => {
+    if (
+      timeoutRef.current
+    ) {
+      window.clearTimeout(
+        timeoutRef.current,
+      )
+
+      timeoutRef.current =
+        null
+    }
   }
 
   /*
@@ -101,7 +140,9 @@ export default function WhatsAppEmbeddedSignup({
     code: string,
     signupData: SignupData,
   ) => {
-    if (completingRef.current) {
+    if (
+      completingRef.current
+    ) {
       console.log(
         'Embedded Signup completion already in progress.',
       )
@@ -109,7 +150,8 @@ export default function WhatsAppEmbeddedSignup({
       return
     }
 
-    completingRef.current = true
+    completingRef.current =
+      true
 
     try {
       console.log(
@@ -153,45 +195,35 @@ export default function WhatsAppEmbeddedSignup({
       setError('')
 
       /*
-       * Send the complete Embedded Signup payload
-       * to the backend.
+       * Send the authorization CODE and
+       * WhatsApp asset information to backend.
        *
-       * IMPORTANT:
-       * The frontend does NOT send a Meta access token.
-       *
-       * It sends the authorization CODE returned
-       * by FB.login() together with the WABA/phone
-       * information returned by WA_EMBEDDED_SIGNUP.
+       * Do NOT send a Meta access token here.
        */
-      await whatsappService.completeEmbeddedSignup({
-        organizationId:
-          signupData.organizationId,
+      await whatsappService.completeEmbeddedSignup(
+        {
+          organizationId:
+            signupData.organizationId,
 
-        wabaId:
-          signupData.wabaId,
+          wabaId:
+            signupData.wabaId,
 
-        phoneNumberId:
-          signupData.phoneNumberId,
+          phoneNumberId:
+            signupData.phoneNumberId,
 
-        businessId:
-          signupData.businessId,
+          businessId:
+            signupData.businessId,
 
-        code,
-      })
+          code,
+        },
+      )
 
       console.log(
         'WhatsApp Embedded Signup completed successfully.',
       )
 
       clearSignupStorage()
-
-      if (timeoutRef.current) {
-        window.clearTimeout(
-          timeoutRef.current,
-        )
-
-        timeoutRef.current = null
-      }
+      clearTimeoutTimer()
 
       setLoading(false)
 
@@ -221,137 +253,80 @@ export default function WhatsAppEmbeddedSignup({
         'Failed to connect WhatsApp account.'
 
       clearSignupStorage()
+      clearTimeoutTimer()
 
       showError(message)
     } finally {
-      completingRef.current = false
+      completingRef.current =
+        false
     }
   }
 
   /*
    * ============================================================
-   * FACEBOOK SDK
+   * INITIALIZE META SDK
    * ============================================================
    */
 
   useEffect(() => {
-    if (!META_APP_ID) {
-      setError(
-        'Meta App ID is not configured.',
-      )
+    let cancelled = false
 
-      return
-    }
-
-    if (!META_CONFIG_ID) {
-      setError(
-        'Meta WhatsApp Configuration ID is not configured.',
-      )
-
-      return
-    }
-
-    const initializeFacebookSDK = () => {
-      console.log(
-        'Initializing Facebook SDK...',
-      )
-
-      if (!window.FB) {
-        console.error(
-          'Facebook SDK callback fired but window.FB is unavailable.',
+    const initialize = async () => {
+      if (!META_APP_ID) {
+        setError(
+          'Meta App ID is not configured.',
         )
 
+        return
+      }
+
+      if (!META_CONFIG_ID) {
         setError(
-          'Facebook SDK failed to load.',
+          'Meta WhatsApp Configuration ID is not configured.',
         )
 
         return
       }
 
       try {
-        window.FB.init({
-          appId: META_APP_ID,
-          cookie: true,
-          xfbml: true,
-          version:
-            META_GRAPH_API_VERSION,
-        })
+        console.log(
+          'Loading Facebook SDK...',
+        )
+
+        await loadMetaSDK()
+
+        if (cancelled) {
+          return
+        }
 
         console.log(
-          'Facebook SDK initialized successfully.',
+          'Facebook SDK ready.',
         )
 
         setSdkReady(true)
         setError('')
       } catch (error) {
+        if (cancelled) {
+          return
+        }
+
         console.error(
           'Facebook SDK initialization failed:',
           error,
         )
 
         setError(
-          'Failed to initialize Meta Facebook SDK.',
+          error instanceof Error
+            ? error.message
+            : 'Failed to initialize Meta Facebook SDK.',
         )
       }
     }
 
-    /*
-     * SDK already loaded
-     */
-    if (window.FB) {
-      initializeFacebookSDK()
-
-      return
-    }
-
-    /*
-     * SDK not loaded yet
-     */
-    window.fbAsyncInit =
-      initializeFacebookSDK
-
-    const existingScript =
-      document.getElementById(
-        'facebook-jssdk',
-      )
-
-    if (!existingScript) {
-      console.log(
-        'Loading Facebook SDK...',
-      )
-
-      const script =
-        document.createElement('script')
-
-      script.id =
-        'facebook-jssdk'
-
-      script.async = true
-      script.defer = true
-      script.crossOrigin =
-        'anonymous'
-
-      script.src =
-        'https://connect.facebook.net/en_US/sdk.js'
-
-      script.onerror = () => {
-        console.error(
-          'Failed to load Facebook SDK.',
-        )
-
-        setError(
-          'Unable to load Meta Facebook SDK.',
-        )
-      }
-
-      document.body.appendChild(
-        script,
-      )
-    }
+    initialize()
 
     return () => {
-      window.fbAsyncInit =
-        undefined
+      cancelled = true
     }
   }, [])
 
@@ -365,17 +340,8 @@ export default function WhatsAppEmbeddedSignup({
     const handleMessage = async (
       event: MessageEvent,
     ) => {
-      console.log(
-        'Meta message received:',
-        {
-          origin: event.origin,
-          data: event.data,
-        },
-      )
-
       /*
-       * Meta Embedded Signup can communicate
-       * through these Facebook origins.
+       * Only accept messages from Meta/Facebook.
        */
       if (
         event.origin !==
@@ -385,6 +351,17 @@ export default function WhatsAppEmbeddedSignup({
       ) {
         return
       }
+
+      console.log(
+        'Meta message received:',
+        {
+          origin:
+            event.origin,
+
+          data:
+            event.data,
+        },
+      )
 
       if (
         typeof event.data !==
@@ -408,7 +385,7 @@ export default function WhatsAppEmbeddedSignup({
        * Ignore unrelated Facebook messages.
        */
       if (
-        data?.type !==
+        data.type !==
         'WA_EMBEDDED_SIGNUP'
       ) {
         return
@@ -441,15 +418,7 @@ export default function WhatsAppEmbeddedSignup({
         'CANCEL'
       ) {
         clearSignupStorage()
-
-        if (timeoutRef.current) {
-          window.clearTimeout(
-            timeoutRef.current,
-          )
-
-          timeoutRef.current =
-            null
-        }
+        clearTimeoutTimer()
 
         showError(
           'WhatsApp setup was cancelled.',
@@ -469,9 +438,15 @@ export default function WhatsAppEmbeddedSignup({
         'ERROR'
       ) {
         clearSignupStorage()
+        clearTimeoutTimer()
+
+        const metaError =
+          data.data
+            ?.error_message
 
         showError(
-          'Meta WhatsApp Embedded Signup returned an error.',
+          metaError ||
+            'Meta WhatsApp Embedded Signup returned an error.',
         )
 
         return
@@ -483,11 +458,15 @@ export default function WhatsAppEmbeddedSignup({
        * ========================================================
        */
 
-      if (
-        data.event !== 'FINISH' &&
-        data.event !== 'FINISH_ONLY_WABA' &&
-        data.event !== 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING'
-      ) {
+      const isFinishEvent =
+        data.event ===
+          'FINISH' ||
+        data.event ===
+          'FINISH_ONLY_WABA' ||
+        data.event ===
+          'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING'
+
+      if (!isFinishEvent) {
         return
       }
 
@@ -510,7 +489,8 @@ export default function WhatsAppEmbeddedSignup({
       )
 
       /*
-       * Meta must return WABA ID and Phone Number ID.
+       * Meta must return WABA ID and
+       * Phone Number ID for our flow.
        */
       if (
         !wabaId ||
@@ -542,22 +522,23 @@ export default function WhatsAppEmbeddedSignup({
         }
 
       /*
-       * Store the Meta asset information.
+       * Store WhatsApp asset information.
        *
-       * FB.login() and this message event
-       * are asynchronous and can arrive
+       * FB.login() and WA_EMBEDDED_SIGNUP
+       * are asynchronous and may arrive
        * in either order.
        */
       sessionStorage.setItem(
         DATA_STORAGE_KEY,
+
         JSON.stringify(
           signupData,
         ),
       )
 
       /*
-       * Check whether FB.login() has already
-       * returned the authorization code.
+       * Check whether authorization code
+       * has already arrived.
        */
       const code =
         sessionStorage.getItem(
@@ -573,8 +554,8 @@ export default function WhatsAppEmbeddedSignup({
       }
 
       /*
-       * Both pieces are available.
-       * Complete signup.
+       * Both code + WABA information
+       * are now available.
        */
       await completeSignup(
         code,
@@ -595,8 +576,6 @@ export default function WhatsAppEmbeddedSignup({
     }
   }, [
     organizationId,
-    onSuccess,
-    onError,
   ])
 
   /*
@@ -629,22 +608,12 @@ export default function WhatsAppEmbeddedSignup({
     )
 
     console.log(
-      'META_GRAPH_API_VERSION:',
-      META_GRAPH_API_VERSION,
-    )
-
-    console.log(
-      'Facebook SDK:',
-      window.FB,
-    )
-
-    console.log(
       'Organization ID:',
       organizationId,
     )
 
     /*
-     * Validate SDK
+     * Validate SDK.
      */
     if (!window.FB) {
       showError(
@@ -655,7 +624,7 @@ export default function WhatsAppEmbeddedSignup({
     }
 
     /*
-     * Validate App ID
+     * Validate App ID.
      */
     if (!META_APP_ID) {
       showError(
@@ -666,7 +635,7 @@ export default function WhatsAppEmbeddedSignup({
     }
 
     /*
-     * Validate Configuration ID
+     * Validate Config ID.
      */
     if (!META_CONFIG_ID) {
       showError(
@@ -677,7 +646,7 @@ export default function WhatsAppEmbeddedSignup({
     }
 
     /*
-     * Validate organization
+     * Validate organization.
      */
     if (!organizationId) {
       showError(
@@ -688,16 +657,17 @@ export default function WhatsAppEmbeddedSignup({
     }
 
     /*
-     * Prevent double clicks
+     * Prevent double-clicks.
      */
     if (loading) {
       return
     }
 
     /*
-     * Clear previous signup data.
+     * Clear any previous signup.
      */
     clearSignupStorage()
+    clearTimeoutTimer()
 
     completingRef.current =
       false
@@ -725,16 +695,28 @@ export default function WhatsAppEmbeddedSignup({
           )
 
           console.log(
-            'Meta login response:',
+            'FULL META LOGIN RESPONSE:',
             response,
           )
 
+          console.log(
+            'META LOGIN STATUS:',
+            response?.status,
+          )
+
+          console.log(
+            'META AUTH RESPONSE:',
+            response?.authResponse,
+          )
+
           /*
-           * User cancelled Meta login
+           * IMPORTANT:
+           *
+           * Do NOT immediately call this
+           * "cancelled" simply because
+           * authResponse is null.
            */
-          if (
-            !response
-          ) {
+          if (!response) {
             clearSignupStorage()
 
             showError(
@@ -744,31 +726,58 @@ export default function WhatsAppEmbeddedSignup({
             return
           }
 
-          /*
-           * No authResponse means the login
-           * was cancelled or rejected.
-           */
           if (
             !response.authResponse
           ) {
+            console.warn(
+              'Meta FB.login returned no authResponse.',
+              {
+                status:
+                  response.status,
+
+                response,
+              },
+            )
+
+            /*
+             * This is intentionally logged
+             * instead of being silently converted
+             * into a cancellation.
+             */
             clearSignupStorage()
 
+            if (
+              response.status ===
+              'unknown'
+            ) {
+              showError(
+                'Meta login returned status "unknown". Check the browser console and Meta App configuration.',
+              )
+
+              return
+            }
+
             showError(
-              'WhatsApp setup was cancelled or Meta login failed.',
+              'Meta did not return an authorization response.',
             )
 
             return
           }
 
           /*
-           * Embedded Signup configured with
-           * response_type=code should return
-           * an authorization code.
+           * Embedded Signup is using
+           * response_type=code.
            */
+          const authResponse =
+            response.authResponse as
+              | {
+                  code?: string
+                  accessToken?: string
+                }
+              | undefined
+
           const code =
-            response
-              .authResponse
-              .code
+            authResponse?.code
 
           console.log(
             'Authorization code received:',
@@ -799,7 +808,7 @@ export default function WhatsAppEmbeddedSignup({
 
           /*
            * Check whether the
-           * WA_EMBEDDED_SIGNUP message
+           * WA_EMBEDDED_SIGNUP event
            * has already arrived.
            */
           const storedData =
@@ -826,7 +835,7 @@ export default function WhatsAppEmbeddedSignup({
               signupData,
             )
 
-            completeSignup(
+            void completeSignup(
               code,
               signupData,
             )
@@ -854,15 +863,15 @@ export default function WhatsAppEmbeddedSignup({
           override_default_response_type:
             true,
 
-            extras: {
-              setup: {},
-            
-              featureType:
-                'whatsapp_business_app_onboarding',
-            
-              sessionInfoVersion:
-                '3',
-            },
+          extras: {
+            setup: {},
+
+            featureType:
+              'whatsapp_business_app_onboarding',
+
+            sessionInfoVersion:
+              '3',
+          },
         },
       )
 
@@ -872,9 +881,6 @@ export default function WhatsAppEmbeddedSignup({
 
       /*
        * Safety timeout.
-       *
-       * If Meta does absolutely nothing,
-       * don't leave the CRM stuck forever.
        */
       timeoutRef.current =
         window.setTimeout(() => {
@@ -888,12 +894,13 @@ export default function WhatsAppEmbeddedSignup({
                 'Meta Embedded Signup timed out.',
               )
 
-              setError(
-                'Meta WhatsApp signup did not open or respond. Please check your Meta App configuration and browser console.',
-              )
+              const message =
+                'Meta WhatsApp signup did not open or respond. Please check your Meta App configuration and browser console.'
+
+              setError(message)
 
               onError?.(
-                'Meta WhatsApp signup did not open or respond.',
+                message,
               )
 
               return false
@@ -910,6 +917,7 @@ export default function WhatsAppEmbeddedSignup({
       )
 
       clearSignupStorage()
+      clearTimeoutTimer()
 
       const message =
         error instanceof Error
@@ -928,13 +936,7 @@ export default function WhatsAppEmbeddedSignup({
 
   useEffect(() => {
     return () => {
-      if (
-        timeoutRef.current
-      ) {
-        window.clearTimeout(
-          timeoutRef.current,
-        )
-      }
+      clearTimeoutTimer()
     }
   }, [])
 
