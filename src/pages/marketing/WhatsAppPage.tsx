@@ -19,6 +19,7 @@ import {
 
 import { WhatsAppTab } from '@/components/marketing/WhatsAppTab'
 import { WhatsAppConfiguration } from '@/components/marketing/WhatsAppConfiguration'
+import { WhatsAppInbox } from '@/components/whatsapp/WhatsAppInbox'
 
 type WhatsAppView =
   | 'home'
@@ -41,7 +42,7 @@ const WHATSAPP_TOOLS: WhatsAppTool[] = [
     title: 'Inbox',
     description: 'Manage customer conversations and replies.',
     icon: Inbox,
-    available: false,
+    available: true,
   },
   {
     id: 'campaigns',
@@ -290,39 +291,7 @@ export function WhatsAppPage() {
           'Manage customer conversations and replies.',
         )}
 
-        <Card
-          elevation={0}
-          sx={{
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: 3,
-          }}
-        >
-          <CardContent
-            sx={{
-              p: 6,
-              textAlign: 'center',
-            }}
-          >
-            <Inbox size={32} />
-
-            <Typography
-              variant="h6"
-              fontWeight={750}
-              sx={{ mt: 2, mb: 1 }}
-            >
-              WhatsApp Inbox
-            </Typography>
-
-            <Typography
-              variant="body2"
-              color="text.secondary"
-            >
-              The WhatsApp conversation inbox will be
-              implemented here.
-            </Typography>
-          </CardContent>
-        </Card>
+        <WhatsAppInbox />
       </Box>
     )
   }
@@ -388,7 +357,7 @@ export function WhatsAppPage() {
           variant="outlined"
           size="small"
           startIcon={<Inbox size={16} />}
-          disabled
+          onClick={() => setView('inbox')}
         >
           Inbox
         </Button>

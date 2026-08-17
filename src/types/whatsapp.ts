@@ -1,19 +1,19 @@
 export interface WhatsAppSettings {
-  businessPhone?: string
-  businessId?: string
-  displayName?: string
-
-  // Connection information
+  status?: 'connected' | 'disconnected'
   isConnected?: boolean
+  businessPhone?: string
   phoneNumber?: string
+  businessId?: string
+  metaBusinessId?: string
+  displayName?: string
   phoneNumberId?: string
   wabaId?: string
   webhookVerified?: boolean
-
-  // Account metadata
   businessName?: string
   templateCount?: number
   lastSync?: string
+  connectedAt?: string
+  disconnectedAt?: string | null
 }
 
 export interface WhatsAppTemplate {
@@ -40,4 +40,41 @@ export interface WhatsAppSendResult {
   sentCount: number
   failedCount?: number
   errors?: string[]
+}
+
+export interface WhatsAppConversation {
+  id: number
+  contactId?: number | null
+  leadId?: number | null
+  phoneNumber: string
+  customerPhone?: string
+  contactName?: string | null
+  lastMessage?: string
+  lastMessageAt: string
+  unreadCount: number
+  status?: string
+}
+
+export interface WhatsAppThreadMessage {
+  id: number
+  conversationId: number
+  wamid: string
+  direction: 'inbound' | 'outbound'
+  senderPhone: string
+  recipientPhone: string
+  messageType: string
+  text: string
+  status: string
+  errorMessage?: string | null
+  timestamp: string
+  createdAt: string
+}
+
+export interface WhatsAppTestResult {
+  ok: boolean
+  message: string
+  displayName?: string
+  businessPhone?: string
+  wabaId?: string
+  phoneNumberId?: string
 }

@@ -22,6 +22,7 @@ import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined'
 import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined'
 import EventNoteOutlinedIcon from '@mui/icons-material/EventNoteOutlined'
 import TimelineOutlinedIcon from '@mui/icons-material/TimelineOutlined'
+import WhatsAppIcon from '@mui/icons-material/WhatsApp'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { PageHeader } from '@/components/common/PageHeader'
 import { SectionCard } from '@/components/common/SectionCard'
@@ -32,6 +33,7 @@ import { getErrorMessage } from '@/api/client'
 import { leadsService } from '@/api/services'
 import { invalidateListQueries } from '@/api/utils/query'
 import { LeadPropertyPanel } from '@/components/leads/LeadPropertyPanel'
+import { WhatsAppThreadDrawer } from '@/components/whatsapp/WhatsAppThreadDrawer'
 import { LEAD_STATUSES } from '@/utils/constants'
 import { capitalize, formatContactId, formatContactRecordId, formatCurrency, formatDateTime, formatLeadId } from '@/utils/formatters'
 import type { LeadStatus } from '@/types'
@@ -71,6 +73,7 @@ export function LeadDetailPage() {
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
   const [noteText, setNoteText] = useState('')
+  const [whatsappOpen, setWhatsappOpen] = useState(false)
 
   const { data: lead, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['lead', id],
@@ -128,9 +131,19 @@ export function LeadDetailPage() {
           { label: fullName },
         ]}
         action={
-          <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => navigate('/leads')}>
-            Back to Leads
-          </Button>
+          <Box display="flex" gap={1} flexWrap="wrap">
+            <Button
+              variant="contained"
+              startIcon={<WhatsAppIcon />}
+              onClick={() => setWhatsappOpen(true)}
+              sx={{ bgcolor: '#25D366', '&:hover': { bgcolor: '#20BD5A' } }}
+            >
+              WhatsApp
+            </Button>
+            <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => navigate('/leads')}>
+              Back to Leads
+            </Button>
+          </Box>
         }
       />
 
@@ -385,6 +398,15 @@ export function LeadDetailPage() {
           </SectionCard>
         </Grid>
       </Grid>
+
+      <WhatsAppThreadDrawer
+        open={whatsappOpen}
+        onClose={() => setWhatsappOpen(false)}
+        leadId={lead.id}
+        contactId={lead.contactId}
+        title={`WhatsApp · ${fullName}`}
+        phone={lead.phone}
+      />
     </Box>
   )
 }

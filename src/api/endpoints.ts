@@ -23,18 +23,24 @@ export const ENDPOINTS = {
   },
   WHATSAPP: {
     SETTINGS: '/whatsapp/settings',
-  
+    CONNECTION: '/whatsapp/connection',
     AUTH_URL: '/whatsapp/auth-url',
     CONNECT: '/whatsapp/connect',
+    CONNECT_INITIATE: '/whatsapp/connect/initiate',
     DISCONNECT: '/whatsapp/disconnect',
     REFRESH: '/whatsapp/refresh',
+    TEST: '/whatsapp/test',
     EMBEDDED_SIGNUP: '/whatsapp/embedded-signup',
-  
     TEMPLATES: '/whatsapp/templates',
     TEMPLATE_BY_ID: (id: number | string) =>
       `/whatsapp/templates/${id}`,
-  
     SEND: '/whatsapp/send',
+    MESSAGES: '/whatsapp/messages',
+    CONVERSATIONS: '/whatsapp/conversations',
+    CONVERSATION_MESSAGES: (id: number | string) =>
+      `/whatsapp/conversations/${id}/messages`,
+    CONVERSATION_READ: (id: number | string) =>
+      `/whatsapp/conversations/${id}/read`,
   },
   PROPERTIES: {
     BASE: '/properties',

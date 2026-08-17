@@ -25,7 +25,6 @@ import {
   MessageCircle,
   Phone,
   RefreshCw,
-  Send,
   Settings2,
   Smartphone,
   Sparkles,
@@ -34,7 +33,7 @@ import {
 
 import { getErrorMessage } from '@/api/client'
 import { marketingService } from '@/api/services'
-import { WhatsAppTab } from '@/components/marketing/WhatsAppTab'
+import { WhatsAppPage } from '@/pages/marketing/WhatsAppPage'
 import { GoogleBusinessTab } from '@/components/marketing/GoogleBusinessTab'
 import { AIContentStudio } from '@/components/marketing/AIContentStudio'
 import { AnalyticsDashboard } from '@/components/marketing/AnalyticsDashboard'
@@ -320,12 +319,6 @@ export function MarketingHubPage() {
     queryKey: ['marketing', 'content'],
     queryFn: marketingService.listContent,
     enabled: view === 'google',
-  })
-
-  const campaignsQuery = useQuery({
-    queryKey: ['marketing', 'campaigns'],
-    queryFn: marketingService.listCampaigns,
-    enabled: view === 'whatsapp',
   })
 
   const analyticsQuery = useQuery({
@@ -824,59 +817,11 @@ export function MarketingHubPage() {
     <Box>
       {renderToolHeader(
         'WhatsApp',
-        'Manage WhatsApp conversations, campaigns and templates.',
+        'Connect WhatsApp, message leads, and manage the inbox.',
         MessageCircle,
       )}
 
-      <Box
-        sx={{
-          display: 'flex',
-          gap: 1,
-          mb: 3,
-          overflowX: 'auto',
-        }}
-      >
-        <Button
-          variant="contained"
-          size="small"
-          startIcon={
-            <MessageCircle size={16} />
-          }
-        >
-          Campaigns
-        </Button>
-
-        <Button
-          variant="outlined"
-          size="small"
-          startIcon={<Send size={16} />}
-        >
-          Inbox
-        </Button>
-
-        <Button
-          variant="outlined"
-          size="small"
-          startIcon={<Settings2 size={16} />}
-        >
-          Settings
-        </Button>
-      </Box>
-
-      <WhatsAppTab
-        campaigns={campaignsQuery.data ?? []}
-        loadingCampaigns={
-          campaignsQuery.isLoading
-        }
-        onCampaignCreated={() =>
-          queryClient.invalidateQueries({
-            queryKey: [
-              'marketing',
-              'campaigns',
-            ],
-          })
-        }
-      />
+      <WhatsAppPage />
     </Box>
   )
 

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Alert,
@@ -17,6 +17,7 @@ import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined'
 import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined'
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined'
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined'
+import WhatsAppIcon from '@mui/icons-material/WhatsApp'
 import { useQuery } from '@tanstack/react-query'
 import { AppTable, type AppTableColumn } from '@/components/common/AppTable'
 import tableStyles from './ContactLeadsTable.module.css'
@@ -35,6 +36,7 @@ import {
   formatLeadId,
 } from '@/utils/formatters'
 import type { ContactLeadSummary } from '@/types'
+import { WhatsAppThreadDrawer } from '@/components/whatsapp/WhatsAppThreadDrawer'
 
 function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
@@ -58,6 +60,7 @@ export function ContactDetailPage() {
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
   const contactId = Number(id)
+  const [whatsappOpen, setWhatsappOpen] = useState(false)
 
   const { data: contact, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['contact', id],
@@ -162,9 +165,19 @@ export function ContactDetailPage() {
           { label: fullName },
         ]}
         action={
-          <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => navigate('/contacts')}>
-            Back to Contacts
-          </Button>
+          <Box display="flex" gap={1} flexWrap="wrap">
+            <Button
+              variant="contained"
+              startIcon={<WhatsAppIcon />}
+              onClick={() => setWhatsappOpen(true)}
+              sx={{ bgcolor: '#25D366', '&:hover': { bgcolor: '#20BD5A' } }}
+            >
+              WhatsApp
+            </Button>
+            <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => navigate('/contacts')}>
+              Back to Contacts
+            </Button>
+          </Box>
         }
       />
 
@@ -247,6 +260,14 @@ export function ContactDetailPage() {
           </SectionCard>
         </Grid>
       </Grid>
+
+      <WhatsAppThreadDrawer
+        open={whatsappOpen}
+        onClose={() => setWhatsappOpen(false)}
+        contactId={contact.id}
+        title={`WhatsApp · ${fullName}`}
+        phone={contact.phone}
+      />
     </Box>
   )
 }
