@@ -1,6 +1,7 @@
 import type { ApiEnvelope } from "../types/backend";
 import type {
   WhatsAppConversation,
+  WhatsAppMetaTemplate,
   WhatsAppSendPayload,
   WhatsAppSendResult,
   WhatsAppSettings,
@@ -113,6 +114,23 @@ export const whatsappService = {
     return unwrap(data);
   },
 
+  async getApprovedTemplates(): Promise<WhatsAppMetaTemplate[]> {
+    const { data } = await apiClient.get<ApiEnvelope<Array<WhatsAppMetaTemplate & { _id?: number }>>>(
+      ENDPOINTS.WHATSAPP.TEMPLATES,
+      { params: { status: 'APPROVED', limit: 100 } },
+    );
+
+    const result = unwrapPaginated(data);
+    return result.data.map((template) => ({
+      ...template,
+      id: template.id || Number(template._id),
+    }));
+  },
+
+  async syncTemplates(): Promise<void> {
+    await apiClient.post(ENDPOINTS.WHATSAPP.TEMPLATES_SYNC);
+  },
+
   async createTemplate(
     payload: WhatsAppTemplatePayload,
   ): Promise<WhatsAppTemplate> {
@@ -150,11 +168,14 @@ export const whatsappService = {
   },
 
   async sendText(payload: {
-    text: string;
+    text?: string;
     leadId?: number;
     contactId?: number;
     conversationId?: number;
     to?: string;
+    type?: 'text' | 'template';
+    templateId?: number;
+    templateVariables?: Record<string, string>;
   }): Promise<{ messageId: string; conversationId: number }> {
     const { data } = await apiClient.post<
       ApiEnvelope<{ messageId: string; conversationId: number }>

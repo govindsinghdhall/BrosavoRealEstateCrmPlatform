@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
   Box,
+  Button,
   List,
   ListItemButton,
   ListItemText,
@@ -10,10 +11,12 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { whatsappService } from '@/api/services/whatsapp.service'
 import { WhatsAppConversationPanel } from './WhatsAppConversationPanel'
+import { WhatsAppNewConversationForm } from './WhatsAppNewConversationForm'
 
 export function WhatsAppInbox() {
   const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [composing, setComposing] = useState(false)
 
   const conversationsQuery = useQuery({
     queryKey: ['whatsapp-conversations', search],
@@ -49,7 +52,17 @@ export function WhatsAppInbox() {
           overflow: 'hidden',
         }}
       >
-        <Box sx={{ p: 1.5 }}>
+        <Box sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <Button
+            variant="contained"
+            onClick={() => {
+              setComposing(true)
+              setSelectedId(null)
+            }}
+            sx={{ bgcolor: '#25D366', '&:hover': { bgcolor: '#20BD5A' } }}
+          >
+            + New Conversation
+          </Button>
           <TextField
             size="small"
             fullWidth
@@ -67,8 +80,11 @@ export function WhatsAppInbox() {
           {conversations.map((conversation) => (
             <ListItemButton
               key={conversation.id}
-              selected={conversation.id === selectedId}
-              onClick={() => setSelectedId(conversation.id)}
+              selected={!composing && conversation.id === selectedId}
+              onClick={() => {
+                setComposing(false)
+                setSelectedId(conversation.id)
+              }}
             >
               <ListItemText
                 primary={
@@ -93,15 +109,26 @@ export function WhatsAppInbox() {
           p: 2,
         }}
       >
-        {selected ? (
+        {composing ? (
+          <WhatsAppNewConversationForm
+            onCancel={() => setComposing(false)}
+            onSent={async (conversationId) => {
+              setComposing(false)
+              setSelectedId(conversationId)
+              await conversationsQuery.refetch()
+            }}
+          />
+        ) : selected ? (
           <WhatsAppConversationPanel
             conversationId={selected.id}
             leadId={selected.leadId || undefined}
             contactId={selected.contactId || undefined}
+            title={selected.contactName || selected.phoneNumber}
+            phone={selected.phoneNumber}
           />
         ) : (
           <Typography color="text.secondary">
-            Select a conversation from the inbox.
+            No conversation selected
           </Typography>
         )}
       </Box>

@@ -24,6 +24,21 @@ export interface WhatsAppTemplate {
   updatedAt: string
 }
 
+export interface WhatsAppMetaTemplate {
+  id: number
+  templateId?: string
+  name: string
+  language: string
+  status: string
+  category?: string
+  components?: Array<{
+    type: string
+    text?: string
+    format?: string
+  }>
+  variables?: string[]
+}
+
 export interface WhatsAppTemplatePayload {
   name: string
   message: string

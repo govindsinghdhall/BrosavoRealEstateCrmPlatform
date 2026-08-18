@@ -32,6 +32,7 @@ export const ENDPOINTS = {
     TEST: '/whatsapp/test',
     EMBEDDED_SIGNUP: '/whatsapp/embedded-signup',
     TEMPLATES: '/whatsapp/templates',
+    TEMPLATES_SYNC: '/whatsapp/templates/sync',
     TEMPLATE_BY_ID: (id: number | string) =>
       `/whatsapp/templates/${id}`,
     SEND: '/whatsapp/send',
