@@ -514,14 +514,14 @@ export function MarketingHubPage() {
             Overview
           </Typography>
 
-          <Box sx={{ mb: 5 }}>
+          {/* <Box sx={{ mb: 5 }}>
             <Typography
               variant="h6"
               fontWeight={750}
               sx={{ mb: 2 }}
             >
               Overview
-            </Typography>
+            </Typography> */}
 
             <Box
               sx={{
