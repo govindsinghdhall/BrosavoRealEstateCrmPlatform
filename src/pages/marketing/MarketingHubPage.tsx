@@ -676,7 +676,6 @@ export function MarketingHubPage() {
               </Card>
             </Box>
           </Box>
-        </Box>
 
         {/* ================================================== */}
         {/* TOOLS */}
