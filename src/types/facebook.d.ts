@@ -32,7 +32,7 @@ export interface WhatsAppEmbeddedSignupLoginOptions {
      * Empty string = Cloud API Embedded Signup.
      * `whatsapp_business_app_onboarding` is only for WhatsApp Business App coexistence.
      */
-    featureType: '' | 'whatsapp_business_app_onboarding'
+    featureType?: '' | 'whatsapp_business_app_onboarding'
     sessionInfoVersion: '3'
   }
 }

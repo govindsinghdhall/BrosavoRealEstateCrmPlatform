@@ -20,6 +20,7 @@ import {
 import { WhatsAppTab } from '@/components/marketing/WhatsAppTab'
 import { WhatsAppConfiguration } from '@/components/marketing/WhatsAppConfiguration'
 import { WhatsAppInbox } from '@/components/whatsapp/WhatsAppInbox'
+import { WhatsAppTemplatesManager } from '@/components/whatsapp/WhatsAppTemplatesManager'
 
 type WhatsAppView =
   | 'home'
@@ -252,33 +253,8 @@ export function WhatsAppPage() {
           'Templates',
           'Manage approved WhatsApp message templates.',
         )}
-
-        <Card
-          elevation={0}
-          sx={{
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: 3,
-          }}
-        >
-          <CardContent sx={{ p: 3 }}>
-            <Typography
-              variant="h6"
-              fontWeight={750}
-              sx={{ mb: 1 }}
-            >
-              WhatsApp Templates
-            </Typography>
-
-            <Typography
-              variant="body2"
-              color="text.secondary"
-            >
-              Template management will be moved into
-              this dedicated workspace.
-            </Typography>
-          </CardContent>
-        </Card>
+  
+        <WhatsAppTemplatesManager />
       </Box>
     )
   }

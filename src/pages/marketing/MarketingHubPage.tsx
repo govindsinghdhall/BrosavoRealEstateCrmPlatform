@@ -514,168 +514,159 @@ export function MarketingHubPage() {
             Overview
           </Typography>
 
-          {/* <Box sx={{ mb: 5 }}>
-            <Typography
-              variant="h6"
-              fontWeight={750}
-              sx={{ mb: 2 }}
-            >
-              Overview
-            </Typography> */}
-
-            <Box
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',
+                sm: 'repeat(2, minmax(0, 1fr))',
+                md: 'repeat(4, minmax(0, 1fr))',
+              },
+              gap: 2,
+            }}
+          >
+            <Card
+              elevation={0}
               sx={{
-                display: 'grid',
-                gridTemplateColumns: {
-                  xs: '1fr',
-                  sm: 'repeat(2, minmax(0, 1fr))',
-                  md: 'repeat(4, minmax(0, 1fr))',
-                },
-                gap: 2,
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 3,
               }}
             >
-              <Card
-                elevation={0}
-                sx={{
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  borderRadius: 3,
-                }}
-              >
-                <CardContent>
+              <CardContent>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                >
+                  Connected Platforms
+                </Typography>
+
+                <Typography
+                  variant="h4"
+                  fontWeight={800}
+                  sx={{ mt: 1 }}
+                >
+                  {hub.summary.connectedPlatforms}
                   <Typography
+                    component="span"
                     variant="body2"
                     color="text.secondary"
+                    sx={{ ml: 1 }}
                   >
-                    Connected Platforms
+                    / {hub.summary.totalPlatforms}
                   </Typography>
+                </Typography>
+              </CardContent>
+            </Card>
 
-                  <Typography
-                    variant="h4"
-                    fontWeight={800}
-                    sx={{ mt: 1 }}
-                  >
-                    {hub.summary.connectedPlatforms}
-                    <Typography
-                      component="span"
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ ml: 1 }}
-                    >
-                      / {hub.summary.totalPlatforms}
-                    </Typography>
-                  </Typography>
-                </CardContent>
-              </Card>
+            <Card
+              elevation={0}
+              sx={{
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 3,
+              }}
+            >
+              <CardContent>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                >
+                  Google Reviews
+                </Typography>
 
-              <Card
-                elevation={0}
-                sx={{
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  borderRadius: 3,
-                }}
-              >
-                <CardContent>
+                <Typography
+                  variant="h4"
+                  fontWeight={800}
+                  sx={{ mt: 1 }}
+                >
+                  {hub.summary.googleReviews}
+                </Typography>
+
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                >
+                  {hub.summary.googleReviewsTrend}
+                </Typography>
+              </CardContent>
+            </Card>
+
+            <Card
+              elevation={0}
+              sx={{
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 3,
+              }}
+            >
+              <CardContent>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                >
+                  Scheduled Campaigns
+                </Typography>
+
+                <Typography
+                  variant="h4"
+                  fontWeight={800}
+                  sx={{ mt: 1 }}
+                >
+                  {hub.summary.scheduledCampaigns}
+                </Typography>
+
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                >
+                  Upcoming campaigns
+                </Typography>
+              </CardContent>
+            </Card>
+
+            <Card
+              elevation={0}
+              sx={{
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 3,
+              }}
+            >
+              <CardContent>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                >
+                  Marketing Score
+                </Typography>
+
+                <Typography
+                  variant="h4"
+                  fontWeight={800}
+                  sx={{ mt: 1 }}
+                >
+                  {hub.summary.marketingScore}
                   <Typography
+                    component="span"
                     variant="body2"
                     color="text.secondary"
+                    sx={{ ml: 0.5 }}
                   >
-                    Google Reviews
+                    / 100
                   </Typography>
+                </Typography>
 
-                  <Typography
-                    variant="h4"
-                    fontWeight={800}
-                    sx={{ mt: 1 }}
-                  >
-                    {hub.summary.googleReviews}
-                  </Typography>
-
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                  >
-                    {hub.summary.googleReviewsTrend}
-                  </Typography>
-                </CardContent>
-              </Card>
-
-              <Card
-                elevation={0}
-                sx={{
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  borderRadius: 3,
-                }}
-              >
-                <CardContent>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                  >
-                    Scheduled Campaigns
-                  </Typography>
-
-                  <Typography
-                    variant="h4"
-                    fontWeight={800}
-                    sx={{ mt: 1 }}
-                  >
-                    {hub.summary.scheduledCampaigns}
-                  </Typography>
-
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                  >
-                    Upcoming campaigns
-                  </Typography>
-                </CardContent>
-              </Card>
-
-              <Card
-                elevation={0}
-                sx={{
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  borderRadius: 3,
-                }}
-              >
-                <CardContent>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                  >
-                    Marketing Score
-                  </Typography>
-
-                  <Typography
-                    variant="h4"
-                    fontWeight={800}
-                    sx={{ mt: 1 }}
-                  >
-                    {hub.summary.marketingScore}
-                    <Typography
-                      component="span"
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ ml: 0.5 }}
-                    >
-                      / 100
-                    </Typography>
-                  </Typography>
-
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                  >
-                    Avg. rating {hub.summary.averageRating}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Box>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                >
+                  Avg. rating {hub.summary.averageRating}
+                </Typography>
+              </CardContent>
+            </Card>
           </Box>
+        </Box>
 
         {/* ================================================== */}
         {/* TOOLS */}

@@ -376,7 +376,7 @@ export async function launchWhatsAppSignup(
       override_default_response_type: true,
       extras: {
         setup: {},
-        featureType: '',
+        // featureType: '',
         sessionInfoVersion: '3',
       },
     }
