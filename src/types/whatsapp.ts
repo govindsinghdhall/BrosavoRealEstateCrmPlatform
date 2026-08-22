@@ -16,32 +16,73 @@ export interface WhatsAppSettings {
   disconnectedAt?: string | null
 }
 
-export interface WhatsAppTemplate {
-  id: number
-  name: string
-  message: string
-  createdAt: string
-  updatedAt: string
+export type WhatsAppTemplateCategory =
+  | 'MARKETING'
+  | 'UTILITY'
+  | 'AUTHENTICATION'
+
+export type WhatsAppTemplateStatus =
+  | 'DRAFT'
+  | 'PENDING'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'PAUSED'
+  | 'DISABLED'
+  | 'IN_REVIEW'
+  | string
+
+export interface WhatsAppTemplateButton {
+  type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER' | 'COPY_CODE' | 'FLOW' | string
+  text: string
+  url?: string
+  phone_number?: string
+  example?: string[]
 }
 
+export interface WhatsAppTemplateComponent {
+  type: 'HEADER' | 'BODY' | 'FOOTER' | 'BUTTONS' | string
+  text?: string
+  format?: 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT' | string
+  example?: unknown
+  buttons?: WhatsAppTemplateButton[]
+}
+
+/** Canonical Meta/CRM WhatsApp template record returned by the API. */
 export interface WhatsAppMetaTemplate {
   id: number
-  templateId?: string
+  templateId?: string | null
   name: string
   language: string
-  status: string
-  category?: string
-  components?: Array<{
-    type: string
-    text?: string
-    format?: string
-  }>
+  status: WhatsAppTemplateStatus
+  category?: WhatsAppTemplateCategory | string
+  quality?: string
+  components?: WhatsAppTemplateComponent[]
   variables?: string[]
+  rejectionReason?: string | null
+  createdAt?: string
+  updatedAt?: string
 }
+
+/** @deprecated Use WhatsAppMetaTemplate. Kept for transitional imports. */
+export type WhatsAppTemplate = WhatsAppMetaTemplate
 
 export interface WhatsAppTemplatePayload {
   name: string
-  message: string
+  language: string
+  category: WhatsAppTemplateCategory
+  header?: {
+    format?: 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT'
+    text?: string
+  }
+  body: string
+  footer?: string
+  buttons?: Array<{
+    type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER'
+    text: string
+    url?: string
+    phone_number?: string
+  }>
+  variableExamples?: Record<string, string>
 }
 
 export interface WhatsAppSendPayload {

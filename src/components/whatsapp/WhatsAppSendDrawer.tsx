@@ -32,8 +32,8 @@ export function WhatsAppSendDrawer({ open, onClose, contacts, onSuccess }: Whats
   const [error, setError] = useState('')
 
   const { data: templates, isLoading: templatesLoading } = useQuery({
-    queryKey: ['whatsapp-templates'],
-    queryFn: whatsappService.getTemplates,
+    queryKey: ['whatsapp-approved-templates'],
+    queryFn: () => whatsappService.getApprovedTemplates(),
     enabled: open,
   })
 
@@ -146,7 +146,8 @@ export function WhatsAppSendDrawer({ open, onClose, contacts, onSuccess }: Whats
           <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, bgcolor: 'background.paper' }}>
             <Typography variant="subtitle2">Template preview</Typography>
             <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mt: 1 }}>
-              {selectedTemplate.message}
+              {selectedTemplate.components?.find((component) => component.type === 'BODY')?.text ||
+                selectedTemplate.name}
             </Typography>
           </Box>
         )}

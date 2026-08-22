@@ -5,7 +5,6 @@ import type {
   WhatsAppSendPayload,
   WhatsAppSendResult,
   WhatsAppSettings,
-  WhatsAppTemplate,
   WhatsAppTemplatePayload,
   WhatsAppTestResult,
   WhatsAppThreadMessage,
@@ -106,19 +105,24 @@ export const whatsappService = {
     return unwrap(data);
   },
 
-  async getTemplates(): Promise<WhatsAppTemplate[]> {
-    const { data } = await apiClient.get<ApiEnvelope<WhatsAppTemplate[]>>(
-      ENDPOINTS.WHATSAPP.TEMPLATES,
-    );
-
-    return unwrap(data);
-  },
-
-  async getApprovedTemplates(): Promise<WhatsAppMetaTemplate[]> {
-    const { data } = await apiClient.get<ApiEnvelope<Array<WhatsAppMetaTemplate & { _id?: number }>>>(
-      ENDPOINTS.WHATSAPP.TEMPLATES,
-      { params: { status: 'APPROVED', limit: 100 } },
-    );
+  async getTemplates(params?: {
+    status?: string
+    category?: string
+    search?: string
+    page?: number
+    limit?: number
+  }): Promise<WhatsAppMetaTemplate[]> {
+    const { data } = await apiClient.get<
+      ApiEnvelope<Array<WhatsAppMetaTemplate & { _id?: number }>>
+    >(ENDPOINTS.WHATSAPP.TEMPLATES, {
+      params: {
+        page: params?.page || 1,
+        limit: params?.limit || 100,
+        status: params?.status,
+        category: params?.category,
+        search: params?.search,
+      },
+    });
 
     const result = unwrapPaginated(data);
     return result.data.map((template) => ({
@@ -127,14 +131,26 @@ export const whatsappService = {
     }));
   },
 
-  async syncTemplates(): Promise<void> {
-    await apiClient.post(ENDPOINTS.WHATSAPP.TEMPLATES_SYNC);
+  async getApprovedTemplates(): Promise<WhatsAppMetaTemplate[]> {
+    return this.getTemplates({ status: 'APPROVED', limit: 100 });
+  },
+
+  async syncTemplates(): Promise<WhatsAppMetaTemplate[]> {
+    const { data } = await apiClient.post<
+      ApiEnvelope<{ count: number; templates: WhatsAppMetaTemplate[] }>
+    >(ENDPOINTS.WHATSAPP.TEMPLATES_SYNC);
+
+    const result = unwrap(data);
+    return (result.templates || []).map((template) => ({
+      ...template,
+      id: template.id || Number((template as WhatsAppMetaTemplate & { _id?: number })._id),
+    }));
   },
 
   async createTemplate(
     payload: WhatsAppTemplatePayload,
-  ): Promise<WhatsAppTemplate> {
-    const { data } = await apiClient.post<ApiEnvelope<WhatsAppTemplate>>(
+  ): Promise<WhatsAppMetaTemplate> {
+    const { data } = await apiClient.post<ApiEnvelope<WhatsAppMetaTemplate>>(
       ENDPOINTS.WHATSAPP.TEMPLATES,
       payload,
     );
@@ -145,10 +161,18 @@ export const whatsappService = {
   async updateTemplate(
     id: number,
     payload: WhatsAppTemplatePayload,
-  ): Promise<WhatsAppTemplate> {
-    const { data } = await apiClient.put<ApiEnvelope<WhatsAppTemplate>>(
+  ): Promise<WhatsAppMetaTemplate> {
+    const { data } = await apiClient.put<ApiEnvelope<WhatsAppMetaTemplate>>(
       ENDPOINTS.WHATSAPP.TEMPLATE_BY_ID(id),
       payload,
+    );
+
+    return unwrap(data);
+  },
+
+  async submitTemplate(id: number): Promise<WhatsAppMetaTemplate> {
+    const { data } = await apiClient.post<ApiEnvelope<WhatsAppMetaTemplate>>(
+      ENDPOINTS.WHATSAPP.TEMPLATE_SUBMIT(id),
     );
 
     return unwrap(data);

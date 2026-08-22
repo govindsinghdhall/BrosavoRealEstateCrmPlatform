@@ -83,7 +83,7 @@ export function WhatsAppCampaignDrawer({
     isLoading: templatesLoading,
   } = useQuery({
     queryKey: ['whatsapp-templates'],
-    queryFn: () => whatsappService.getTemplates(),
+    queryFn: () => whatsappService.getTemplates({ status: 'APPROVED', limit: 100 }),
     enabled: open,
   })
 

@@ -32,44 +32,32 @@ import RefreshIcon from '@mui/icons-material/Refresh'
 import AddIcon from '@mui/icons-material/Add'
 import SyncIcon from '@mui/icons-material/Sync'
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
+import SendOutlinedIcon from '@mui/icons-material/SendOutlined'
 import SearchIcon from '@mui/icons-material/Search'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getErrorMessage } from '@/api/client'
 import { whatsappService } from '@/api/services'
+import type {
+  WhatsAppMetaTemplate,
+  WhatsAppTemplateCategory,
+  WhatsAppTemplateComponent,
+  WhatsAppTemplatePayload,
+} from '@/types'
 
-interface WhatsAppTemplateComponent {
-  type?: string
-  format?: string
-  text?: string
-  buttons?: Array<{
-    type?: string
-    text?: string
-    url?: string
-    phone_number?: string
-  }>
-}
+type StatusFilter =
+  | 'ALL'
+  | 'DRAFT'
+  | 'APPROVED'
+  | 'PENDING'
+  | 'REJECTED'
+  | 'PAUSED'
 
-interface WhatsAppTemplate {
-  id?: number | string
-  _id?: string
-  templateId?: string
-  name: string
-  category?: string
-  language?: string
-  status?: string
-  quality?: string
-  components?: WhatsAppTemplateComponent[]
-  variables?: string[]
-}
-
-type StatusFilter = 'ALL' | 'APPROVED' | 'PENDING' | 'REJECTED'
-
-type TemplateCategory = 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
 type TemplateHeaderType = 'NONE' | 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT'
 
 interface CreateTemplateForm {
   name: string
-  category: TemplateCategory
+  category: WhatsAppTemplateCategory
   language: string
   headerType: TemplateHeaderType
   headerText: string
@@ -84,18 +72,17 @@ function normalizeStatus(status?: string) {
 
 function getStatusColor(
   status?: string,
-): 'success' | 'warning' | 'error' | 'default' {
+): 'success' | 'warning' | 'error' | 'default' | 'info' {
   switch (normalizeStatus(status)) {
     case 'APPROVED':
       return 'success'
-
     case 'PENDING':
     case 'IN_REVIEW':
       return 'warning'
-
     case 'REJECTED':
       return 'error'
-
+    case 'DRAFT':
+      return 'info'
     default:
       return 'default'
   }
@@ -103,15 +90,8 @@ function getStatusColor(
 
 function getStatusLabel(status?: string) {
   const normalized = normalizeStatus(status)
-
-  if (normalized === 'IN_REVIEW') {
-    return 'IN REVIEW'
-  }
-
-  if (normalized === 'UNKNOWN') {
-    return 'UNKNOWN'
-  }
-
+  if (normalized === 'IN_REVIEW') return 'IN REVIEW'
+  if (normalized === 'UNKNOWN') return 'UNKNOWN'
   return normalized
 }
 
@@ -120,46 +100,63 @@ function getComponentText(
   type?: string,
 ) {
   return components?.find(
-    (component) =>
-      component.type?.toUpperCase() === type,
+    (component) => component.type?.toUpperCase() === type,
   )?.text
 }
 
-function getButtons(
-  components?: WhatsAppTemplateComponent[],
-) {
+function getButtons(components?: WhatsAppTemplateComponent[]) {
   return (
     components
-      ?.filter(
-        (component) =>
-          component.type?.toUpperCase() === 'BUTTONS',
-      )
+      ?.filter((component) => component.type?.toUpperCase() === 'BUTTONS')
       .flatMap((component) => component.buttons ?? []) ?? []
   )
+}
+
+function buildTemplatePayload(form: CreateTemplateForm): WhatsAppTemplatePayload {
+  const buttons = form.buttons
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 3)
+    .map((text) => ({ type: 'QUICK_REPLY' as const, text }))
+
+  return {
+    name: form.name.trim(),
+    language: form.language.trim() || 'en',
+    category: form.category,
+    header:
+      form.headerType === 'NONE'
+        ? undefined
+        : {
+            format: form.headerType,
+            text:
+              form.headerType === 'TEXT' ? form.headerText.trim() : undefined,
+          },
+    body: form.body.trim(),
+    footer: form.footer.trim() || undefined,
+    buttons: buttons.length ? buttons : undefined,
+  }
 }
 
 export function WhatsAppTemplatesManager() {
   const queryClient = useQueryClient()
 
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] =
-    useState<StatusFilter>('ALL')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
   const [selectedTemplate, setSelectedTemplate] =
-    useState<WhatsAppTemplate | null>(null)
-
+    useState<WhatsAppMetaTemplate | null>(null)
+  const [formError, setFormError] = useState('')
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
-
-  const [createForm, setCreateForm] =
-    useState<CreateTemplateForm>({
-      name: '',
-      category: 'UTILITY',
-      language: 'en',
-      headerType: 'NONE',
-      headerText: '',
-      body: '',
-      footer: '',
-      buttons: '',
-    })
+  const [createForm, setCreateForm] = useState<CreateTemplateForm>({
+    name: '',
+    category: 'UTILITY',
+    language: 'en',
+    headerType: 'NONE',
+    headerText: '',
+    body: '',
+    footer: '',
+    buttons: '',
+  })
 
   const resetCreateForm = () => {
     setCreateForm({
@@ -172,6 +169,7 @@ export function WhatsAppTemplatesManager() {
       footer: '',
       buttons: '',
     })
+    setFormError('')
   }
 
   const handleOpenCreateDialog = () => {
@@ -180,6 +178,7 @@ export function WhatsAppTemplatesManager() {
   }
 
   const handleCloseCreateDialog = () => {
+    if (createMutation.isPending) return
     setCreateDialogOpen(false)
     resetCreateForm()
   }
@@ -188,29 +187,7 @@ export function WhatsAppTemplatesManager() {
     field: keyof CreateTemplateForm,
     value: string,
   ) => {
-    setCreateForm((current) => ({
-      ...current,
-      [field]: value,
-    }))
-  }
-
-  const handleCreateTemplate = () => {
-    // Step 1 only: collect and validate the template definition in the UI.
-    // Meta submission and backend persistence will be implemented in the next step.
-    const name = createForm.name.trim()
-    const body = createForm.body.trim()
-
-    if (!name || !body) {
-      return
-    }
-
-    console.log('WhatsApp template draft:', {
-      ...createForm,
-      name,
-      body,
-    })
-
-    handleCloseCreateDialog()
+    setCreateForm((current) => ({ ...current, [field]: value }))
   }
 
   const {
@@ -219,87 +196,102 @@ export function WhatsAppTemplatesManager() {
     isFetching,
     isError,
     error,
-  } = useQuery<WhatsAppTemplate[]>({
+  } = useQuery({
     queryKey: ['whatsapp-templates'],
-    queryFn: whatsappService.getTemplates,
+    queryFn: () => whatsappService.getTemplates({ limit: 100 }),
   })
 
   const syncMutation = useMutation({
     mutationFn: whatsappService.syncTemplates,
-
-    onSuccess: (data) => {
-      queryClient.setQueryData(
-        ['whatsapp-templates'],
-        data,
-      )
+    onSuccess: async (data) => {
+      queryClient.setQueryData(['whatsapp-templates'], data)
+      await queryClient.invalidateQueries({
+        queryKey: ['whatsapp-approved-templates'],
+      })
     },
   })
 
+  const createMutation = useMutation({
+    mutationFn: (payload: WhatsAppTemplatePayload) =>
+      whatsappService.createTemplate(payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['whatsapp-templates'] })
+      setCreateDialogOpen(false)
+      resetCreateForm()
+    },
+    onError: (err) => setFormError(getErrorMessage(err)),
+  })
+
+  const submitMutation = useMutation({
+    mutationFn: (id: number) => whatsappService.submitTemplate(id),
+    onSuccess: async (template) => {
+      await queryClient.invalidateQueries({ queryKey: ['whatsapp-templates'] })
+      setSelectedTemplate(template)
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => whatsappService.deleteTemplate(id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['whatsapp-templates'] })
+      setSelectedTemplate(null)
+    },
+  })
+
+  const handleCreateTemplate = () => {
+    setFormError('')
+    if (!createForm.name.trim() || !createForm.body.trim()) {
+      setFormError('Template name and body are required.')
+      return
+    }
+    if (createForm.headerType === 'TEXT' && !createForm.headerText.trim()) {
+      setFormError('Header text is required when header type is Text.')
+      return
+    }
+    createMutation.mutate(buildTemplatePayload(createForm))
+  }
+
   const filteredTemplates = useMemo(() => {
     const searchValue = search.trim().toLowerCase()
-
     return templates
       .filter((template) => {
-        if (statusFilter === 'ALL') {
-          return true
-        }
-
+        if (statusFilter === 'ALL') return true
         const status = normalizeStatus(template.status)
-
         if (statusFilter === 'PENDING') {
-          return (
-            status === 'PENDING' ||
-            status === 'IN_REVIEW'
-          )
+          return status === 'PENDING' || status === 'IN_REVIEW'
         }
-
         return status === statusFilter
       })
       .filter((template) => {
-        if (!searchValue) {
-          return true
-        }
-
-        return [
-          template.name,
-          template.category,
-          template.language,
-          template.status,
-        ]
+        if (!searchValue) return true
+        return [template.name, template.category, template.language, template.status]
           .filter(Boolean)
-          .some((value) =>
-            String(value)
-              .toLowerCase()
-              .includes(searchValue),
-          )
+          .some((value) => String(value).toLowerCase().includes(searchValue))
       })
-      .sort((a, b) =>
-        a.name.localeCompare(b.name),
-      )
+      .sort((a, b) => a.name.localeCompare(b.name))
   }, [templates, search, statusFilter])
 
   const totalCount = templates.length
-
-  const approvedCount = templates.filter(
-    (template) =>
-      normalizeStatus(template.status) ===
-      'APPROVED',
+  const draftCount = templates.filter(
+    (template) => normalizeStatus(template.status) === 'DRAFT',
   ).length
-
+  const approvedCount = templates.filter(
+    (template) => normalizeStatus(template.status) === 'APPROVED',
+  ).length
   const pendingCount = templates.filter((template) => {
     const status = normalizeStatus(template.status)
-
-    return (
-      status === 'PENDING' ||
-      status === 'IN_REVIEW'
-    )
+    return status === 'PENDING' || status === 'IN_REVIEW'
   }).length
-
   const rejectedCount = templates.filter(
-    (template) =>
-      normalizeStatus(template.status) ===
-      'REJECTED',
+    (template) => normalizeStatus(template.status) === 'REJECTED',
   ).length
+
+  const canSubmitSelected =
+    !!selectedTemplate &&
+    ['DRAFT', 'REJECTED'].includes(normalizeStatus(selectedTemplate.status))
+  const canDeleteSelected =
+    !!selectedTemplate &&
+    ['DRAFT', 'REJECTED'].includes(normalizeStatus(selectedTemplate.status))
 
   const handleSync = () => {
     syncMutation.mutate()
@@ -340,8 +332,7 @@ export function WhatsAppTemplatesManager() {
             variant="body2"
             color="text.secondary"
           >
-            Templates synchronized from your Meta
-            WhatsApp Business Account.
+            Create local drafts, submit them to Meta, and sync approval status.
           </Typography>
         </Box>
 
@@ -437,34 +428,17 @@ export function WhatsAppTemplatesManager() {
           display: 'grid',
           gridTemplateColumns: {
             xs: '1fr 1fr',
-            md: 'repeat(4, 1fr)',
+            md: 'repeat(5, 1fr)',
           },
           gap: 2,
           mb: 3,
         }}
       >
-        <SummaryCard
-          label="Total Templates"
-          value={totalCount}
-        />
-
-        <SummaryCard
-          label="Approved"
-          value={approvedCount}
-          color="success.main"
-        />
-
-        <SummaryCard
-          label="Pending"
-          value={pendingCount}
-          color="warning.main"
-        />
-
-        <SummaryCard
-          label="Rejected"
-          value={rejectedCount}
-          color="error.main"
-        />
+        <SummaryCard label="Total Templates" value={totalCount} />
+        <SummaryCard label="Draft" value={draftCount} color="info.main" />
+        <SummaryCard label="Approved" value={approvedCount} color="success.main" />
+        <SummaryCard label="Pending" value={pendingCount} color="warning.main" />
+        <SummaryCard label="Rejected" value={rejectedCount} color="error.main" />
       </Box>
 
       {/* FILTERS */}
@@ -529,21 +503,12 @@ export function WhatsAppTemplatesManager() {
                   )
                 }
               >
-                <MenuItem value="ALL">
-                  All Statuses
-                </MenuItem>
-
-                <MenuItem value="APPROVED">
-                  Approved
-                </MenuItem>
-
-                <MenuItem value="PENDING">
-                  Pending
-                </MenuItem>
-
-                <MenuItem value="REJECTED">
-                  Rejected
-                </MenuItem>
+                <MenuItem value="ALL">All Statuses</MenuItem>
+                <MenuItem value="DRAFT">Draft</MenuItem>
+                <MenuItem value="PENDING">Pending</MenuItem>
+                <MenuItem value="APPROVED">Approved</MenuItem>
+                <MenuItem value="REJECTED">Rejected</MenuItem>
+                <MenuItem value="PAUSED">Paused</MenuItem>
               </Select>
             </FormControl>
 
@@ -685,7 +650,6 @@ export function WhatsAppTemplatesManager() {
                       <TableRow
                         key={
                           template.id ??
-                          template._id ??
                           template.templateId ??
                           template.name
                         }
@@ -782,8 +746,15 @@ export function WhatsAppTemplatesManager() {
         <DialogContent dividers>
           <Stack spacing={2.5}>
             <Alert severity="info">
-              Step 1: Define your template. Nothing is sent to Meta yet.
+              Save as a local draft first. Use Submit to Meta from the template
+              details dialog when you are ready for Meta approval.
             </Alert>
+
+            {formError && (
+              <Alert severity="error" onClose={() => setFormError('')}>
+                {formError}
+              </Alert>
+            )}
 
             <TextField
               required
@@ -923,7 +894,7 @@ export function WhatsAppTemplatesManager() {
                   event.target.value,
                 )
               }
-              helperText="Step 1 stores the button definition as text. Button payload mapping will be added in the Meta submission step."
+              helperText="Comma-separated quick-reply button labels (max 3). Example: Schedule Visit, Call Us"
             />
           </Stack>
         </DialogContent>
@@ -937,11 +908,17 @@ export function WhatsAppTemplatesManager() {
             variant="contained"
             onClick={handleCreateTemplate}
             disabled={
+              createMutation.isPending ||
               !createForm.name.trim() ||
               !createForm.body.trim()
             }
+            startIcon={
+              createMutation.isPending ? (
+                <CircularProgress size={16} color="inherit" />
+              ) : undefined
+            }
           >
-            Create Draft
+            {createMutation.isPending ? 'Saving...' : 'Save Draft'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1046,6 +1023,29 @@ export function WhatsAppTemplatesManager() {
                     }
                   />
                 </Box>
+
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                    gap: 2,
+                  }}
+                >
+                  <DetailItem
+                    label="Meta Template ID"
+                    value={selectedTemplate.templateId || 'Not submitted'}
+                  />
+                  <DetailItem
+                    label="Rejection Reason"
+                    value={selectedTemplate.rejectionReason || '—'}
+                  />
+                </Box>
+
+                {(submitMutation.isError || deleteMutation.isError) && (
+                  <Alert severity="error">
+                    {getErrorMessage(submitMutation.error || deleteMutation.error)}
+                  </Alert>
+                )}
 
                 <Divider />
 
@@ -1210,14 +1210,40 @@ export function WhatsAppTemplatesManager() {
               </Stack>
             </DialogContent>
 
-            <DialogActions>
-              <Button
-                onClick={() =>
-                  setSelectedTemplate(null)
-                }
-              >
-                Close
-              </Button>
+            <DialogActions sx={{ gap: 1, flexWrap: 'wrap' }}>
+              {canDeleteSelected && (
+                <Button
+                  color="error"
+                  startIcon={<DeleteOutlineIcon />}
+                  disabled={deleteMutation.isPending || submitMutation.isPending}
+                  onClick={() => {
+                    if (!selectedTemplate?.id) return
+                    deleteMutation.mutate(Number(selectedTemplate.id))
+                  }}
+                >
+                  Delete Draft
+                </Button>
+              )}
+              {canSubmitSelected && (
+                <Button
+                  variant="contained"
+                  startIcon={
+                    submitMutation.isPending ? (
+                      <CircularProgress size={16} color="inherit" />
+                    ) : (
+                      <SendOutlinedIcon />
+                    )
+                  }
+                  disabled={deleteMutation.isPending || submitMutation.isPending}
+                  onClick={() => {
+                    if (!selectedTemplate?.id) return
+                    submitMutation.mutate(Number(selectedTemplate.id))
+                  }}
+                >
+                  {submitMutation.isPending ? 'Submitting...' : 'Submit to Meta'}
+                </Button>
+              )}
+              <Button onClick={() => setSelectedTemplate(null)}>Close</Button>
             </DialogActions>
           </>
         )}
