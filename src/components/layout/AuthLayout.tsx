@@ -19,46 +19,87 @@ export function AuthLayout({
     <Box
       sx={{
         width: '100%',
-        height: '100vh',
-        minHeight: '100vh',
-        maxHeight: '100vh',
+        height: '100dvh',
+        minHeight: '100dvh',
+        maxHeight: '100dvh',
         overflow: 'hidden',
         position: 'relative',
         background:
           'linear-gradient(135deg, #eef4ff 0%, #f8faff 45%, #eef7ff 100%)',
       }}
     >
-      {/* Background glow - top right */}
+      {/* ================================================== */}
+      {/* BACKGROUND GLOW - TOP RIGHT */}
+      {/* ================================================== */}
+
       <Box
         sx={{
           position: 'absolute',
-          width: 500,
-          height: 500,
+          width: {
+            xs: 200,
+            sm: 320,
+            md: 500,
+          },
+          height: {
+            xs: 200,
+            sm: 320,
+            md: 500,
+          },
           borderRadius: '50%',
           background:
             'radial-gradient(circle, rgba(59,130,246,0.10) 0%, rgba(59,130,246,0) 70%)',
-          top: -220,
-          right: -120,
+          top: {
+            xs: -80,
+            sm: -120,
+            md: -220,
+          },
+          right: {
+            xs: -60,
+            sm: -100,
+            md: -120,
+          },
           pointerEvents: 'none',
         }}
       />
 
-      {/* Background glow - bottom left */}
+      {/* ================================================== */}
+      {/* BACKGROUND GLOW - BOTTOM LEFT */}
+      {/* ================================================== */}
+
       <Box
         sx={{
           position: 'absolute',
-          width: 500,
-          height: 500,
+          width: {
+            xs: 200,
+            sm: 320,
+            md: 500,
+          },
+          height: {
+            xs: 200,
+            sm: 320,
+            md: 500,
+          },
           borderRadius: '50%',
           background:
             'radial-gradient(circle, rgba(124,58,237,0.08) 0%, rgba(124,58,237,0) 70%)',
-          bottom: -250,
-          left: -150,
+          bottom: {
+            xs: -80,
+            sm: -120,
+            md: -250,
+          },
+          left: {
+            xs: -60,
+            sm: -100,
+            md: -150,
+          },
           pointerEvents: 'none',
         }}
       />
 
-      {/* Main viewport */}
+      {/* ================================================== */}
+      {/* MAIN VIEWPORT */}
+      {/* ================================================== */}
+
       <Box
         sx={{
           width: '100%',
@@ -68,60 +109,75 @@ export function AuthLayout({
           justifyContent: 'center',
           position: 'relative',
           zIndex: 1,
+
           px: {
-            xs: 1.5,
-            sm: 2.5,
+            xs: 1,
+            sm: 2,
             md: 3,
           },
+
           py: {
-            xs: 1.5,
+            xs: 1,
+            sm: 1.5,
             md: 2.5,
           },
+
           boxSizing: 'border-box',
         }}
       >
-        {/* Auth Card */}
+        {/* ================================================== */}
+        {/* AUTH CARD */}
+        {/* ================================================== */}
+
         <Box
           sx={{
             width: '100%',
             maxWidth: 1180,
 
-            /*
-             * IMPORTANT:
-             * The card can never exceed the viewport.
-             */
             height: {
-              xs: 'calc(100vh - 24px)',
-              sm: 'calc(100vh - 40px)',
-              md: 'calc(100vh - 48px)',
+              xs: 'calc(100dvh - 16px)',
+              sm: 'calc(100dvh - 24px)',
+              md: 'calc(100dvh - 48px)',
             },
 
             maxHeight: {
-              xs: 'calc(100vh - 24px)',
-              sm: 'calc(100vh - 40px)',
-              md: 'calc(100vh - 48px)',
+              xs: 'calc(100dvh - 16px)',
+              sm: 'calc(100dvh - 24px)',
+              md: 'calc(100dvh - 48px)',
             },
 
             minHeight: 0,
 
             display: 'flex',
 
+            /*
+             * PHONE
+             * └── Form only
+             *
+             * IPAD + DESKTOP
+             * ├── Hero
+             * └── Form
+             */
             flexDirection: {
               xs: 'column',
-              md: 'row',
+              sm: 'row',
             },
 
             overflow: 'hidden',
 
             borderRadius: {
-              xs: 3,
+              xs: 2,
+              sm: 3,
               md: 4,
             },
 
             backgroundColor: '#ffffff',
 
-            boxShadow:
-              '0 25px 70px rgba(30, 64, 175, 0.15)',
+            boxShadow: {
+              xs: '0 10px 40px rgba(30, 64, 175, 0.12)',
+              sm: '0 15px 50px rgba(30, 64, 175, 0.13)',
+              md: '0 25px 70px rgba(30, 64, 175, 0.15)',
+            },
           }}
         >
           {/* ================================================== */}
@@ -130,27 +186,26 @@ export function AuthLayout({
 
           <Box
             sx={{
+              /*
+               * Hidden on phones.
+               * Visible from iPad size upward.
+               */
+              display: {
+                xs: 'none',
+                sm: 'block',
+              },
+
               width: {
-                xs: '100%',
+                sm: '45%',
                 md: '50%',
               },
 
-              /*
-               * Desktop: exact same height as right side.
-               */
-              height: {
-                xs: '42%',
-                md: '100%',
-              },
+              height: '100%',
 
-              minHeight: {
-                xs: 240,
-                md: 0,
-              },
+              minHeight: 0,
 
               position: 'relative',
               overflow: 'hidden',
-
               flexShrink: 0,
 
               background:
@@ -159,7 +214,10 @@ export function AuthLayout({
               color: '#fff',
             }}
           >
-            {/* Grid */}
+            {/* ================================================== */}
+            {/* GRID */}
+            {/* ================================================== */}
+
             <Box
               sx={{
                 position: 'absolute',
@@ -169,52 +227,106 @@ export function AuthLayout({
                 backgroundImage:
                   'linear-gradient(rgba(255,255,255,0.7) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.7) 1px, transparent 1px)',
 
-                backgroundSize: '45px 45px',
+                backgroundSize: {
+                  sm: '32px 32px',
+                  md: '45px 45px',
+                },
               }}
             />
 
-            {/* Decorative circle */}
-            <Box
-              sx={{
-                position: 'absolute',
-                width: 400,
-                height: 400,
-                borderRadius: '50%',
-                border:
-                  '1px solid rgba(255,255,255,0.10)',
-                right: -170,
-                top: -140,
-              }}
-            />
+            {/* ================================================== */}
+            {/* DECORATIVE CIRCLE 1 */}
+            {/* ================================================== */}
 
             <Box
               sx={{
                 position: 'absolute',
-                width: 550,
-                height: 550,
+
+                width: {
+                  sm: 250,
+                  md: 400,
+                },
+
+                height: {
+                  sm: 250,
+                  md: 400,
+                },
+
                 borderRadius: '50%',
-                border:
-                  '1px solid rgba(255,255,255,0.07)',
-                right: -230,
-                top: -200,
+                border: '1px solid rgba(255,255,255,0.10)',
+
+                right: {
+                  sm: -100,
+                  md: -170,
+                },
+
+                top: {
+                  sm: -70,
+                  md: -140,
+                },
               }}
             />
 
-            {/* Building decoration */}
+            {/* ================================================== */}
+            {/* DECORATIVE CIRCLE 2 */}
+            {/* ================================================== */}
+
             <Box
               sx={{
+                position: 'absolute',
+
+                width: {
+                  sm: 350,
+                  md: 550,
+                },
+
+                height: {
+                  sm: 350,
+                  md: 550,
+                },
+
+                borderRadius: '50%',
+                border: '1px solid rgba(255,255,255,0.07)',
+
+                right: {
+                  sm: -150,
+                  md: -230,
+                },
+
+                top: {
+                  sm: -100,
+                  md: -200,
+                },
+              }}
+            />
+
+            {/* ================================================== */}
+            {/* BUILDING DECORATION */}
+            {/* ================================================== */}
+
+            <Box
+              sx={{
+                display: {
+                  xs: 'none',
+                  sm: 'flex',
+                },
+
                 position: 'absolute',
                 bottom: 0,
                 right: 0,
-                width: '70%',
-                height: '40%',
+
+                width: '75%',
+                height: '35%',
+
                 opacity: 0.10,
 
-                display: 'flex',
                 alignItems: 'flex-end',
                 justifyContent: 'flex-end',
 
-                gap: 1,
+                gap: {
+                  sm: 0.5,
+                  md: 1,
+                },
               }}
             >
               {[25, 38, 30, 52, 43, 70, 48, 85, 60].map(
@@ -223,7 +335,7 @@ export function AuthLayout({
                     key={index}
                     sx={{
                       width: {
-                        xs: 16,
+                        sm: 18,
                         md: 30,
                       },
 
@@ -232,15 +344,17 @@ export function AuthLayout({
                       background:
                         'linear-gradient(to top, #fff, rgba(255,255,255,0.25))',
 
-                      borderRadius:
-                        '3px 3px 0 0',
+                      borderRadius: '3px 3px 0 0',
                     }}
                   />
                 ),
               )}
             </Box>
 
-            {/* Hero content */}
+            {/* ================================================== */}
+            {/* HERO CONTENT */}
+            {/* ================================================== */}
+
             <Box
               sx={{
                 position: 'relative',
@@ -252,7 +366,6 @@ export function AuthLayout({
                 flexDirection: 'column',
 
                 p: {
-                  xs: 2.5,
                   sm: 3,
                   md: 5,
                 },
@@ -260,17 +373,19 @@ export function AuthLayout({
                 boxSizing: 'border-box',
               }}
             >
-              {/* Brand */}
+              {/* ================================================== */}
+              {/* BRAND */}
+              {/* ================================================== */}
+
               <Box>
                 <Typography
                   sx={{
                     fontSize: {
-                      xs: '1.7rem',
+                      sm: '1.5rem',
                       md: '2.2rem',
                     },
 
                     fontWeight: 800,
-
                     letterSpacing: '-0.04em',
                   }}
                 >
@@ -279,16 +394,14 @@ export function AuthLayout({
 
                 <Typography
                   sx={{
-                    mt: 0.3,
+                    mt: 0.2,
 
                     fontSize: {
-                      xs: '0.75rem',
+                      sm: '0.65rem',
                       md: '0.9rem',
                     },
 
-                    color:
-                      'rgba(255,255,255,0.82)',
-
+                    color: 'rgba(255,255,255,0.82)',
                     fontWeight: 500,
                   }}
                 >
@@ -296,29 +409,32 @@ export function AuthLayout({
                 </Typography>
               </Box>
 
-              {/* Main hero message */}
+              {/* ================================================== */}
+              {/* MAIN HERO MESSAGE */}
+              {/* ================================================== */}
+
               <Box
                 sx={{
                   mt: {
-                    xs: 3,
+                    sm: 6,
                     md: 7,
                   },
 
-                  maxWidth: 470,
+                  maxWidth: {
+                    sm: 350,
+                    md: 470,
+                  },
                 }}
               >
                 <Typography
                   sx={{
                     fontSize: {
-                      xs: '1.6rem',
                       sm: '2rem',
                       md: '2.8rem',
                     },
 
-                    lineHeight: 1.08,
-
+                    lineHeight: 1.1,
                     fontWeight: 700,
-
                     letterSpacing: '-0.04em',
                   }}
                 >
@@ -337,15 +453,17 @@ export function AuthLayout({
 
                 <Box
                   sx={{
-                    width: 45,
+                    width: {
+                      sm: 32,
+                      md: 45,
+                    },
+
                     height: 3,
                     borderRadius: 3,
-
-                    backgroundColor:
-                      '#67e8f9',
+                    backgroundColor: '#67e8f9',
 
                     my: {
-                      xs: 1.5,
+                      sm: 1.5,
                       md: 2.5,
                     },
                   }}
@@ -353,60 +471,59 @@ export function AuthLayout({
 
                 <Typography
                   sx={{
+                    display: 'block',
+
                     fontSize: {
-                      xs: '0.78rem',
+                      sm: '0.75rem',
                       md: '0.95rem',
                     },
 
-                    lineHeight: 1.6,
+                    lineHeight: 1.5,
 
-                    color:
-                      'rgba(255,255,255,0.82)',
+                    color: 'rgba(255,255,255,0.82)',
 
-                    maxWidth: 430,
+                    maxWidth: {
+                      sm: 340,
+                      md: 430,
+                    },
                   }}
                 >
-                  An all-in-one CRM to manage
-                  leads, properties, clients and
-                  deals — smarter, faster and more
-                  efficiently.
+                  An all-in-one CRM to manage leads,
+                  properties, clients and deals — smarter,
+                  faster and more efficiently.
                 </Typography>
               </Box>
 
-              {/* Features */}
+              {/* ================================================== */}
+              {/* FEATURES */}
+              {/* ================================================== */}
+
               <Box
                 sx={{
                   mt: 'auto',
 
                   display: 'grid',
 
-                  gridTemplateColumns:
-                    'repeat(3, 1fr)',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
 
                   gap: {
-                    xs: 1,
+                    sm: 1,
                     md: 1.5,
                   },
                 }}
               >
                 <Feature
-                  icon={
-                    <HomeWorkRoundedIcon />
-                  }
+                  icon={<HomeWorkRoundedIcon />}
                   title="Properties"
                 />
 
                 <Feature
-                  icon={
-                    <PeopleAltRoundedIcon />
-                  }
+                  icon={<PeopleAltRoundedIcon />}
                   title="Leads"
                 />
 
                 <Feature
-                  icon={
-                    <TrendingUpRoundedIcon />
-                  }
+                  icon={<TrendingUpRoundedIcon />}
                   title="Deals"
                 />
               </Box>
@@ -421,13 +538,11 @@ export function AuthLayout({
             sx={{
               width: {
                 xs: '100%',
+                sm: '55%',
                 md: '50%',
               },
 
-              height: {
-                xs: '58%',
-                md: '100%',
-              },
+              height: '100%',
 
               minHeight: 0,
 
@@ -438,39 +553,46 @@ export function AuthLayout({
               overflow: 'hidden',
 
               p: {
-                xs: 2.5,
+                xs: 1.5,
                 sm: 3,
                 md: 5,
               },
 
               boxSizing: 'border-box',
 
-              backgroundColor:
-                '#ffffff',
+              backgroundColor: '#ffffff',
             }}
           >
+            {/* ================================================== */}
+            {/* AUTH CONTENT */}
+            {/* ================================================== */}
+
             <Box
               sx={{
                 width: '100%',
-                maxWidth: 490,
 
-                /*
-                 * Prevent content from increasing
-                 * the height of the page.
-                 */
+                maxWidth: {
+                  xs: 490,
+                  sm: 420,
+                  md: 490,
+                },
+
                 minHeight: 0,
 
                 display: 'flex',
                 flexDirection: 'column',
-
                 justifyContent: 'center',
               }}
             >
-              {/* Header */}
+              {/* ================================================== */}
+              {/* HEADER */}
+              {/* ================================================== */}
+
               <Box
                 sx={{
                   mb: {
-                    xs: 2,
+                    xs: 1,
+                    sm: 2,
                     md: 3,
                   },
                 }}
@@ -478,18 +600,14 @@ export function AuthLayout({
                 <Typography
                   sx={{
                     fontSize: {
-                      xs: '1.45rem',
-                      sm: '1.7rem',
+                      xs: '1.1rem',
+                      sm: '1.55rem',
                       md: '2rem',
                     },
 
-                    lineHeight: 1.15,
-
+                    lineHeight: 1.2,
                     fontWeight: 750,
-
-                    letterSpacing:
-                      '-0.035em',
-
+                    letterSpacing: '-0.035em',
                     color: '#111827',
                   }}
                 >
@@ -499,14 +617,17 @@ export function AuthLayout({
                 {subtitle && (
                   <Typography
                     sx={{
-                      mt: 0.8,
+                      mt: 0.4,
 
                       fontSize: {
-                        xs: '0.8rem',
+                        xs: '0.65rem',
+                        sm: '0.75rem',
                         md: '0.9rem',
                       },
 
                       color: '#64748b',
+
+                      lineHeight: 1.4,
                     }}
                   >
                     {subtitle}
@@ -514,46 +635,119 @@ export function AuthLayout({
                 )}
               </Box>
 
-              {/* Form */}
-              {children}
+              {/* ================================================== */}
+              {/* FORM */}
+              {/* ================================================== */}
 
-              {/* Footer */}
+              <Box
+                sx={{
+                  flexShrink: 0,
+
+                  '& form': {
+                    width: '100%',
+                  },
+
+                  '& .MuiTextField-root': {
+                    mb: {
+                      xs: 1,
+                      sm: 1.25,
+                      md: 2,
+                    },
+
+                    '& .MuiInputBase-root': {
+                      fontSize: {
+                        xs: '0.85rem',
+                        sm: '0.9rem',
+                        md: '1rem',
+                      },
+                    },
+                  },
+
+                  '& .MuiButton-root': {
+                    width: '100%',
+
+                    py: {
+                      xs: 0.8,
+                      sm: 1,
+                      md: 1.2,
+                    },
+
+                    fontSize: {
+                      xs: '0.8rem',
+                      sm: '0.9rem',
+                      md: '1rem',
+                    },
+                  },
+
+                  '& .MuiFormControl-root': {
+                    width: '100%',
+                  },
+
+                  '& .MuiInputLabel-root': {
+                    fontSize: {
+                      xs: '0.8rem',
+                      sm: '0.85rem',
+                      md: '1rem',
+                    },
+                  },
+                }}
+              >
+                {children}
+              </Box>
+
+              {/* ================================================== */}
+              {/* FOOTER */}
+              {/* ================================================== */}
+
               <Box
                 sx={{
                   mt: {
-                    xs: 2,
+                    xs: 1.5,
+                    sm: 1.5,
                     md: 3,
                   },
 
                   pt: {
-                    xs: 1.5,
+                    xs: 1,
+                    sm: 1.25,
                     md: 2,
                   },
 
-                  borderTop:
-                    '1px solid #eef2f7',
+                  borderTop: '1px solid #eef2f7',
 
                   textAlign: 'center',
+
+                  flexShrink: 0,
                 }}
               >
                 <Typography
                   variant="caption"
                   sx={{
                     color: '#94a3b8',
-                    fontSize: '0.7rem',
+
+                    fontSize: {
+                      xs: '0.55rem',
+                      sm: '0.6rem',
+                      md: '0.7rem',
+                    },
                   }}
                 >
-                  Secure. Reliable. Built for
-                  Real Estate.
+                  Secure. Reliable. Built for Real Estate.
                 </Typography>
 
                 <Typography
                   variant="caption"
                   display="block"
                   sx={{
-                    mt: 0.5,
+                    mt: 0.3,
+
                     color: '#94a3b8',
-                    fontSize: '0.7rem',
+
+                    fontSize: {
+                      xs: '0.55rem',
+                      sm: '0.6rem',
+                      md: '0.7rem',
+                    },
                   }}
                 >
                   Powered by{' '}
@@ -565,6 +759,12 @@ export function AuthLayout({
                     sx={{
                       color: '#2563eb',
                       fontWeight: 600,
+
+                      fontSize: {
+                        xs: '0.55rem',
+                        sm: '0.6rem',
+                        md: '0.7rem',
+                      },
                     }}
                   >
                     {POWERED_BY_LABEL}
@@ -579,6 +779,10 @@ export function AuthLayout({
   )
 }
 
+/* ================================================== */
+/* FEATURE */
+/* ================================================== */
+
 interface FeatureProps {
   icon: React.ReactNode
   title: string
@@ -592,47 +796,72 @@ function Feature({
     <Box
       sx={{
         p: {
-          xs: 1,
+          xs: 0.5,
+          sm: 1,
           md: 1.5,
         },
 
-        borderRadius: 2,
+        borderRadius: {
+          xs: 1,
+          sm: 1.5,
+          md: 2,
+        },
 
-        backgroundColor:
-          'rgba(255,255,255,0.10)',
+        backgroundColor: 'rgba(255,255,255,0.10)',
 
-        border:
-          '1px solid rgba(255,255,255,0.15)',
+        border: '1px solid rgba(255,255,255,0.15)',
 
         backdropFilter: 'blur(10px)',
+
+        display: 'flex',
+
+        flexDirection: 'column',
+
+        alignItems: 'center',
+
+        justifyContent: 'center',
+
+        gap: {
+          xs: 0.5,
+          sm: 0.4,
+          md: 0.5,
+        },
+
+        minWidth: 0,
       }}
     >
       <Box
         sx={{
           width: {
-            xs: 30,
+            xs: 18,
+            sm: 26,
             md: 34,
           },
 
           height: {
-            xs: 30,
+            xs: 18,
+            sm: 26,
             md: 34,
           },
 
-          borderRadius: 1.5,
+          borderRadius: {
+            xs: 0.75,
+            sm: 1,
+            md: 1.5,
+          },
 
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
 
-          backgroundColor:
-            'rgba(255,255,255,0.12)',
+          backgroundColor: 'rgba(255,255,255,0.12)',
 
-          mb: 0.7,
+          flexShrink: 0,
 
           '& svg': {
             fontSize: {
-              xs: 17,
+              xs: 12,
+              sm: 16,
               md: 20,
             },
           },
@@ -644,14 +873,22 @@ function Feature({
       <Typography
         sx={{
           fontSize: {
-            xs: '0.65rem',
+            xs: '0.5rem',
+            sm: '0.65rem',
             md: '0.75rem',
           },
 
           fontWeight: 600,
 
-          color:
-            'rgba(255,255,255,0.9)',
+          color: 'rgba(255,255,255,0.9)',
+
+          whiteSpace: 'nowrap',
+
+          overflow: 'hidden',
+
+          textOverflow: 'ellipsis',
+
+          maxWidth: '100%',
         }}
       >
         {title}
