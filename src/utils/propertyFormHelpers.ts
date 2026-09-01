@@ -33,7 +33,7 @@ export function buildPropertyDescription(data: PropertyFormData): string {
     `Discover this ${bhkLabel(data.bedrooms)} ${typeLabel} for ${category} in ${data.locality}, ${data.sector}, Gurgaon${landmark}${builder}. ` +
     `Spread across ${data.area.toLocaleString('en-IN')} sq ft with ${data.bathrooms} bathroom${data.bathrooms > 1 ? 's' : ''}${furnishing}${facing}. ` +
     `Located in one of Gurgaon's prime corridors with excellent connectivity.${amenities} ` +
-    `Listed by Durga Property — your trusted partner for premium real estate in Gurgaon.`
+    `Your trusted partner for premium real estate in Gurgaon.`
   )
 }
 

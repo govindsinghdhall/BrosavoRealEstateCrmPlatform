@@ -372,7 +372,7 @@ export function PropertiesPage() {
     <Box>
       <PageHeader
         title="Properties"
-        subtitle="Manage Durga Property listings — published to the website when Active and Available"
+        subtitle="Manage listings — published to the website when Active and Available"
         breadcrumbs={[{ label: 'Home', href: '/dashboard' }, { label: 'Properties' }]}
         action={
           <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenCreate}>
@@ -433,7 +433,7 @@ export function PropertiesPage() {
         subtitle={
           editingProperty
             ? 'Update listing details — changes sync to the website when published'
-            : 'Create a new listing for the Durga Property website'
+            : 'Create a new listing for the website'
         }
         width={720}
         footer={

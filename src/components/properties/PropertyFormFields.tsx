@@ -108,7 +108,7 @@ export function PropertyFormFields({
     ? buildPropertyDescription({
         ...previewValues,
         title: previewTitle,
-        description: 'Durga Property listing.',
+        description: 'listing.',
         address: previewAddress,
       })
     : ''
