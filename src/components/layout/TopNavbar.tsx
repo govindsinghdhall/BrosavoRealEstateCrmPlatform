@@ -76,13 +76,13 @@ export function TopNavbar() {
           </IconButton>
         </Tooltip>
 
-        <Tooltip title="Notifications">
+        {/* <Tooltip title="Notifications">
           <IconButton>
             <Badge badgeContent={3} color="error">
               <NotificationsOutlinedIcon />
             </Badge>
           </IconButton>
-        </Tooltip>
+        </Tooltip> */}
 
         <Box
           display="flex"
