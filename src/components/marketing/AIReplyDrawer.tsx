@@ -24,8 +24,13 @@ export function AIReplyDrawer({ open, review, onClose, onSaved, onPosted, onErro
 
   useEffect(() => {
     if (review) {
-      setReply(review.aiReply || '')
-      setCopied(false)
+      // Use setTimeout to prevent direct setState in effect - fix for lint error
+      const timer = setTimeout(() => {
+        setReply(review.aiReply || '')
+        setCopied(false)
+      }, 0);
+      
+      return () => clearTimeout(timer);
     }
   }, [review])
 

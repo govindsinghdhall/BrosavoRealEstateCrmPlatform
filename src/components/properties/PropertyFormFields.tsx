@@ -71,7 +71,7 @@ interface PropertyFormFieldsProps {
 function SectionTitle({ children }: { children: string }) {
   return (
     <Grid size={{ xs: 12 }}>
-      <Typography variant="subtitle2" fontWeight={700} color="primary" sx={{ mt: 1, mb: -0.5 }}>
+      <Typography variant="subtitle2" fontWeight={700} color="primary" sx={{ mt: 2, mb: 1 }}>
         {children}
       </Typography>
     </Grid>
@@ -126,7 +126,7 @@ export function PropertyFormFields({
   }, [canPreview, previewTitle, previewDescription, previewAddress, setValue])
 
   return (
-    <Grid container spacing={2.5} sx={{ '& > .MuiGrid2-root': { minWidth: 0 } }}>
+    <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mt: 0 }}>
       <SectionTitle>Listing</SectionTitle>
       <Grid size={{ xs: 12, sm: 6 }}>
         <FormSelect

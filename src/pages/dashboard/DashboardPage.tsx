@@ -13,6 +13,7 @@ import { PageSummaryGrid, PageSummaryItem } from '@/components/common/PageSummar
 import { SectionCard } from '@/components/common/SectionCard'
 import { StatCard } from '@/components/common/StatCard'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { FloatingActionButton } from '@/components/common/FloatingActionButton'
 import { dashboardService } from '@/api/services'
 import { formatCurrency, formatDateTime } from '@/utils/formatters'
 
@@ -113,6 +114,8 @@ export function DashboardPage() {
           </SectionCard>
         </Grid>
       </Grid>
+
+      <FloatingActionButton href="/properties" ariaLabel="Add Property" />
     </Box>
   )
 }
