@@ -17,12 +17,12 @@ export const propertySchema = z.object({
   type: z.enum(PROPERTY_TYPES),
   status: z.enum(PROPERTY_STATUSES),
   price: z.number({ invalid_type_error: 'Select a price' }).min(1, 'Select a price'),
-  area: z.number({ invalid_type_error: 'Select area' }).min(1, 'Select area'),
+  area: z.number({ invalid_type_error: 'Select area' }).min(1, 'Select area').optional(),
   carpetArea: z.number().min(0).optional(),
   builtUpArea: z.number().min(0).optional(),
   superArea: z.number().min(0).optional(),
-  bedrooms: z.number({ invalid_type_error: 'Select BHK' }).min(0),
-  bathrooms: z.number({ invalid_type_error: 'Select bathrooms' }).min(1),
+  bedrooms: z.number({ invalid_type_error: 'Select BHK' }).min(0).optional(),
+  bathrooms: z.number({ invalid_type_error: 'Select bathrooms' }).min(1).optional(),
   address: z.string().min(1, 'Address is required'),
   city: z.enum(GURGAON_CITIES),
   state: z.enum(HARYANA_STATES),
@@ -54,4 +54,35 @@ export const propertySchema = z.object({
   ownerNotes: z.string().optional(),
 })
 
-export type PropertyFormData = z.infer<typeof propertySchema>
+// Custom validation for conditional fields
+export const propertySchemaWithConditionalValidation = propertySchema.superRefine((data, ctx) => {
+  if (data.type === 'PLOT') {
+    // For Plot type, make bedrooms, bathrooms and area optional - no additional validation needed
+    return
+  } else {
+    // For other property types, ensure required fields are present
+    if (data.area !== undefined && data.area <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Select area',
+        path: ['area'],
+      })
+    }
+    if (data.bedrooms !== undefined && data.bedrooms < 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Select BHK',
+        path: ['bedrooms'],
+      })
+    }
+    if (data.bathrooms !== undefined && data.bathrooms <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Select bathrooms',
+        path: ['bathrooms'],
+      })
+    }
+  }
+})
+
+export type PropertyFormData = z.infer<typeof propertySchemaWithConditionalValidation>

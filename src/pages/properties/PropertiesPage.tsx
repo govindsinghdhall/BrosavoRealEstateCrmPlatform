@@ -24,7 +24,7 @@ import { TableRowActions } from "@/components/common/TableRowActions";
 import { PropertyFormFields } from "@/components/properties/PropertyFormFields";
 import { MobilePropertyCard } from "@/components/properties/MobilePropertyCard";
 import {
-  propertySchema,
+  propertySchemaWithConditionalValidation,
   type PropertyFormData,
 } from "@/schemas/property.schema";
 import { getErrorMessage } from "@/api/client";
@@ -35,7 +35,7 @@ import {
   removeFromListCaches,
   updateInListCaches,
 } from "@/api/utils/query";
-import { bhkLabel, enrichPropertyFormData } from "@/utils/propertyFormHelpers";
+import { bhkLabel } from "@/utils/propertyFormHelpers";
 import {
   GURGAON_BUILDERS,
   GURGAON_LANDMARKS,
@@ -160,7 +160,7 @@ export function PropertiesPage() {
 
   const { control, handleSubmit, reset, watch, setValue } =
     useForm<PropertyFormData>({
-      resolver: zodResolver(propertySchema),
+      resolver: zodResolver(propertySchemaWithConditionalValidation),
       defaultValues,
     });
 
@@ -180,7 +180,18 @@ export function PropertiesPage() {
       existingImageCount: number;
       images: File[];
     }) => {
-      const payload = { ...formData };
+      // For Plot properties, ensure required fields are provided for API call
+      let payload: any = { ...formData };
+      
+      // For Plot properties, make sure area, bedrooms and bathrooms are valid numbers (not undefined)
+      if (payload.type === 'PLOT') {
+        payload = {
+          ...payload,
+          area: payload.area ?? 0,
+          bedrooms: payload.bedrooms ?? 0,
+          bathrooms: payload.bathrooms ?? 0,
+        };
+      }
 
       const property = propertyId
         ? await propertiesService.update(propertyId, payload)
@@ -308,7 +319,7 @@ export function PropertiesPage() {
   const onSubmit = (formData: PropertyFormData) => {
     setSubmitError("");
     saveMutation.mutate({
-      formData: enrichPropertyFormData(formData),
+      formData,
       propertyId: editingProperty?.id,
       existingImageCount: editingProperty?.images.length ?? 0,
       images: pendingImages,

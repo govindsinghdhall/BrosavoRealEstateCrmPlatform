@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect } from "react";
 import {
   Box,
   Checkbox,
@@ -7,18 +7,23 @@ import {
   Typography,
   alpha,
   useTheme,
-} from '@mui/material'
-import Grid from '@mui/material/Grid2'
-import { Controller, type Control, type UseFormSetValue, type UseFormWatch } from 'react-hook-form'
-import { FormCreatableSelect } from '@/components/forms/FormCreatableSelect'
-import { FormSelect } from '@/components/forms/FormSelect'
-import { FormTextField } from '@/components/forms/FormTextField'
-import { TextField } from '@mui/material';
-import { FormSwitch } from '@/components/forms/FormSwitch'
-import { PropertyImageUpload } from '@/components/properties/PropertyImageUpload'
-import type { PropertyFormData } from '@/schemas/property.schema'
-import type { Property } from '@/types'
-import type { PropertyLookupType } from '@/types/propertyLookup'
+} from "@mui/material";
+import Grid from "@mui/material/Grid2";
+import {
+  Controller,
+  type Control,
+  type UseFormSetValue,
+  type UseFormWatch,
+} from "react-hook-form";
+import { FormCreatableSelect } from "@/components/forms/FormCreatableSelect";
+import { FormSelect } from "@/components/forms/FormSelect";
+import { FormTextField } from "@/components/forms/FormTextField";
+import { TextField } from "@mui/material";
+import { FormSwitch } from "@/components/forms/FormSwitch";
+import { PropertyImageUpload } from "@/components/properties/PropertyImageUpload";
+import type { PropertyFormData } from "@/schemas/property.schema";
+import type { Property } from "@/types";
+import type { PropertyLookupType } from "@/types/propertyLookup";
 import {
   FACING_OPTIONS,
   FURNISHING_OPTIONS,
@@ -28,7 +33,7 @@ import {
   PROPERTY_STATUSES,
   PROPERTY_TYPES,
   PROPERTY_AMENITIES,
-} from '@/utils/constants'
+} from "@/utils/constants";
 import {
   AREA_SQFT_OPTIONS,
   BATHROOM_OPTIONS,
@@ -39,43 +44,49 @@ import {
   ROI_OPTIONS,
   RERA_STATUS_OPTIONS,
   withLegacyOption,
-} from '@/utils/propertyMasterData'
+} from "@/utils/propertyMasterData";
 import {
   buildPropertyAddress,
   buildPropertyDescription,
   buildPropertyTitle,
-} from '@/utils/propertyFormHelpers'
-import { capitalize } from '@/utils/formatters'
-import { MAX_PROPERTY_PHOTOS } from '@/api/services/properties.service'
+} from "@/utils/propertyFormHelpers";
+import { convertNumberToIndianRupeesWords } from "@/utils/numberToIndianRupeesWords";
+import { capitalize } from "@/utils/formatters";
+import { MAX_PROPERTY_PHOTOS } from "@/api/services/properties.service";
 
 export interface PropertyLookupOptionLists {
-  locality: string[]
-  sector: string[]
-  landmark: string[]
-  pincode: string[]
-  builder: string[]
+  locality: string[];
+  sector: string[];
+  landmark: string[];
+  pincode: string[];
+  builder: string[];
 }
 
 interface PropertyFormFieldsProps {
-  control: Control<PropertyFormData>
-  watch: UseFormWatch<PropertyFormData>
-  setValue: UseFormSetValue<PropertyFormData>
-  editingProperty: Property | null
-  lookupOptions: PropertyLookupOptionLists
-  onCreateLookup: (type: PropertyLookupType, value: string) => Promise<void>
-  pendingImages: File[]
-  onFilesChange: (files: File[]) => void
-  uploading: boolean
+  control: Control<PropertyFormData>;
+  watch: UseFormWatch<PropertyFormData>;
+  setValue: UseFormSetValue<PropertyFormData>;
+  editingProperty: Property | null;
+  lookupOptions: PropertyLookupOptionLists;
+  onCreateLookup: (type: PropertyLookupType, value: string) => Promise<void>;
+  pendingImages: File[];
+  onFilesChange: (files: File[]) => void;
+  uploading: boolean;
 }
 
 function SectionTitle({ children }: { children: string }) {
   return (
     <Grid size={{ xs: 12 }}>
-      <Typography variant="subtitle2" fontWeight={700} color="primary" sx={{ mt: 2, mb: 1 }}>
+      <Typography
+        variant="subtitle2"
+        fontWeight={700}
+        color="primary"
+        sx={{ mt: 2, mb: 1 }}
+      >
         {children}
       </Typography>
     </Grid>
-  )
+  );
 }
 
 export function PropertyFormFields({
@@ -89,41 +100,55 @@ export function PropertyFormFields({
   onFilesChange,
   uploading,
 }: PropertyFormFieldsProps) {
-  const theme = useTheme()
-  const isDark = theme.palette.mode === 'dark'
-  const hasRera = watch('hasRera')
-  const previewValues = watch()
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+  const hasRera = watch("hasRera");
+  const propertyType = watch("type");
+  const price = watch("price");
+
+  // Convert price to words for display
+
+  // Convert price to words for display
+  const priceInWords =
+    typeof price === "number" && Number.isFinite(price) && price >= 0
+      ? convertNumberToIndianRupeesWords(price)
+      : "";
+
+  const isPlot = propertyType === "PLOT";
+  const previewValues = watch();
 
   const canPreview =
     !!previewValues.locality &&
     !!previewValues.sector &&
     !!previewValues.type &&
-    previewValues.area > 0 &&
-    previewValues.bathrooms > 0
+    (isPlot ? true : (previewValues.area || 0) > 0) &&
+    (isPlot ? true : (previewValues.bathrooms || 0) > 0);
 
-  const previewTitle = canPreview ? buildPropertyTitle(previewValues) : ''
+  const previewTitle = canPreview ? buildPropertyTitle(previewValues) : "";
   const previewAddress =
-    previewValues.locality && previewValues.sector ? buildPropertyAddress(previewValues) : ''
+    previewValues.locality && previewValues.sector
+      ? buildPropertyAddress(previewValues)
+      : "";
   const previewDescription = canPreview
     ? buildPropertyDescription({
         ...previewValues,
         title: previewTitle,
-        description: 'listing.',
+        description: "listing.",
         address: previewAddress,
       })
-    : ''
+    : "";
 
   useEffect(() => {
-    setValue('city', 'Gurgaon')
-    setValue('state', 'Haryana')
-  }, [setValue])
+    setValue("city", "Gurgaon");
+    setValue("state", "Haryana");
+  }, [setValue]);
 
   useEffect(() => {
-    if (!canPreview) return
-    setValue('title', previewTitle)
-    setValue('description', previewDescription)
-    setValue('address', previewAddress)
-  }, [canPreview, previewTitle, previewDescription, previewAddress, setValue])
+    if (!canPreview) return;
+    setValue("title", previewTitle);
+    setValue("description", previewDescription);
+    setValue("address", previewAddress);
+  }, [canPreview, previewTitle, previewDescription, previewAddress, setValue]);
 
   return (
     <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mt: 0 }}>
@@ -133,45 +158,84 @@ export function PropertyFormFields({
           name="listingCategory"
           control={control}
           label="Listing Category"
-          options={LISTING_CATEGORIES.map((v) => ({ value: v, label: capitalize(v) }))}
+          options={LISTING_CATEGORIES.map((v) => ({
+            value: v,
+            label: capitalize(v),
+          }))}
           required
         />
       </Grid>
       <Grid size={{ xs: 12, sm: 6 }}>
-        <FormSelect name="type" control={control} label="Property Type" options={PROPERTY_TYPES} required />
+        <FormSelect
+          name="type"
+          control={control}
+          label="Property Type"
+          options={PROPERTY_TYPES}
+          required
+        />
       </Grid>
       <Grid size={{ xs: 12, sm: 6 }}>
-        <FormSelect name="status" control={control} label="Status" options={PROPERTY_STATUSES} required />
+        <FormSelect
+          name="status"
+          control={control}
+          label="Status"
+          options={PROPERTY_STATUSES}
+          required
+        />
       </Grid>
       <Grid size={{ xs: 12, sm: 6 }}>
-  <Controller
-    name="price"
-    control={control}
-    render={({ field, fieldState }) => (
-      <TextField
-        {...field}
-        fullWidth
-        label="Price"
-        type="number"
-        required
-        value={field.value || ''}
-        onChange={(e) => field.onChange(Number(e.target.value))}
-        error={!!fieldState.error}
-        helperText={fieldState.error?.message}
-        inputProps={{ min: 0 }}
-      />
-    )}
-  />
-</Grid>
+        <Controller
+          name="price"
+          control={control}
+          render={({ field, fieldState }) => (
+            <TextField
+              {...field}
+              fullWidth
+              label="Price"
+              type="number"
+              required
+              value={field.value || ""}
+              onChange={(e) =>
+                field.onChange(
+                  e.target.value === "" ? undefined : Number(e.target.value),
+                )
+              }
+              error={!!fieldState.error}
+              helperText={fieldState.error?.message}
+              inputProps={{ min: 0 }}
+            />
+          )}
+        />
+      </Grid>
       <Grid size={{ xs: 12 }}>
-        <FormSwitch name="isActive" control={control} label="Active (visible on website when Available)" />
+        <TextField
+          fullWidth
+          label="Price in Words"
+          value={priceInWords}
+          placeholder="Price in words will appear here"
+          InputProps={{ readOnly: true }}
+          size="small"
+        />
+      </Grid>
+
+      <Grid size={{ xs: 12 }}>
+        <FormSwitch
+          name="isActive"
+          control={control}
+          label="Active (visible on website when Available)"
+        />
       </Grid>
 
       <SectionTitle>Location</SectionTitle>
       <Grid size={{ xs: 12 }}>
-        <Typography variant="caption" color="text.secondary" display="block" mb={1}>
-          Pick from the list or type a new locality, sector, landmark, or pincode — it is saved automatically
-          for future listings.
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          display="block"
+          mb={1}
+        >
+          Pick from the list or type a new locality, sector, landmark, or
+          pincode — it is saved automatically for future listings.
         </Typography>
       </Grid>
       <Grid size={{ xs: 12, sm: 6 }}>
@@ -182,7 +246,7 @@ export function PropertyFormFields({
           options={lookupOptions.locality}
           placeholder="Search or add locality"
           required
-          onCreateOption={(value) => onCreateLookup('LOCALITY', value)}
+          onCreateOption={(value) => onCreateLookup("LOCALITY", value)}
         />
       </Grid>
       <Grid size={{ xs: 12, sm: 6 }}>
@@ -193,7 +257,7 @@ export function PropertyFormFields({
           options={lookupOptions.sector}
           placeholder="Search or add sector"
           required
-          onCreateOption={(value) => onCreateLookup('SECTOR', value)}
+          onCreateOption={(value) => onCreateLookup("SECTOR", value)}
         />
       </Grid>
       <Grid size={{ xs: 12, sm: 6 }}>
@@ -203,7 +267,7 @@ export function PropertyFormFields({
           label="Nearby Landmark"
           options={lookupOptions.landmark}
           placeholder="Search or add landmark"
-          onCreateOption={(value) => onCreateLookup('LANDMARK', value)}
+          onCreateOption={(value) => onCreateLookup("LANDMARK", value)}
         />
       </Grid>
       <Grid size={{ xs: 12, sm: 6 }}>
@@ -214,15 +278,31 @@ export function PropertyFormFields({
           options={lookupOptions.pincode}
           placeholder="Search or add pincode"
           required
-          validateNewValue={(value) => (/^\d{6}$/.test(value) ? null : 'Pincode must be 6 digits')}
-          onCreateOption={(value) => onCreateLookup('PINCODE', value)}
+          validateNewValue={(value) =>
+            /^\d{6}$/.test(value) ? null : "Pincode must be 6 digits"
+          }
+          onCreateOption={(value) => onCreateLookup("PINCODE", value)}
         />
       </Grid>
       <Grid size={{ xs: 12, sm: 6 }}>
-        <FormSelect name="city" control={control} label="City" options={GURGAON_CITIES} required disabled />
+        <FormSelect
+          name="city"
+          control={control}
+          label="City"
+          options={GURGAON_CITIES}
+          required
+          disabled
+        />
       </Grid>
       <Grid size={{ xs: 12, sm: 6 }}>
-        <FormSelect name="state" control={control} label="State" options={HARYANA_STATES} required disabled />
+        <FormSelect
+          name="state"
+          control={control}
+          label="State"
+          options={HARYANA_STATES}
+          required
+          disabled
+        />
       </Grid>
 
       <SectionTitle>Configuration</SectionTitle>
@@ -231,10 +311,13 @@ export function PropertyFormFields({
           name="bedrooms"
           control={control}
           label="BHK"
-          options={BEDROOM_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+          options={BEDROOM_OPTIONS.map((o) => ({
+            value: o.value,
+            label: o.label,
+          }))}
           placeholder="Select BHK"
           numeric
-          required
+          required={!isPlot}
         />
       </Grid>
       <Grid size={{ xs: 12, sm: 4 }}>
@@ -242,10 +325,13 @@ export function PropertyFormFields({
           name="bathrooms"
           control={control}
           label="Bathrooms"
-          options={BATHROOM_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+          options={BATHROOM_OPTIONS.map((o) => ({
+            value: o.value,
+            label: o.label,
+          }))}
           placeholder="Select bathrooms"
           numeric
-          required
+          required={!isPlot}
         />
       </Grid>
       <Grid size={{ xs: 12, sm: 4 }}>
@@ -255,11 +341,11 @@ export function PropertyFormFields({
           label="Super Area (sq ft)"
           options={AREA_SQFT_OPTIONS.map((sqft) => ({
             value: sqft,
-            label: `${sqft.toLocaleString('en-IN')} sq ft`,
+            label: `${sqft.toLocaleString("en-IN")} sq ft`,
           }))}
           placeholder="Select area"
           numeric
-          required
+          required={!isPlot}
         />
       </Grid>
 
@@ -271,7 +357,7 @@ export function PropertyFormFields({
           label="Builder"
           options={lookupOptions.builder}
           placeholder="Search or add builder"
-          onCreateOption={(value) => onCreateLookup('BUILDER', value)}
+          onCreateOption={(value) => onCreateLookup("BUILDER", value)}
         />
       </Grid>
       <Grid size={{ xs: 12, sm: 6 }}>
@@ -279,7 +365,10 @@ export function PropertyFormFields({
           name="propertyAge"
           control={control}
           label="Property Age"
-          options={PROPERTY_AGES.map((v) => ({ value: v, label: capitalize(v) }))}
+          options={PROPERTY_AGES.map((v) => ({
+            value: v,
+            label: capitalize(v),
+          }))}
           placeholder="Select property age"
         />
       </Grid>
@@ -288,19 +377,31 @@ export function PropertyFormFields({
           name="furnishing"
           control={control}
           label="Furnishing"
-          options={FURNISHING_OPTIONS.map((v) => ({ value: v, label: capitalize(v) }))}
+          options={FURNISHING_OPTIONS.map((v) => ({
+            value: v,
+            label: capitalize(v),
+          }))}
           placeholder="Select furnishing"
         />
       </Grid>
       <Grid size={{ xs: 12, sm: 4 }}>
-        <FormSelect name="facing" control={control} label="Facing" options={FACING_OPTIONS} placeholder="Select facing" />
+        <FormSelect
+          name="facing"
+          control={control}
+          label="Facing"
+          options={FACING_OPTIONS}
+          placeholder="Select facing"
+        />
       </Grid>
       <Grid size={{ xs: 12, sm: 4 }}>
         <FormSelect
           name="possessionStatus"
           control={control}
           label="Possession Status"
-          options={POSSESSION_STATUSES.map((v) => ({ value: v, label: capitalize(v) }))}
+          options={POSSESSION_STATUSES.map((v) => ({
+            value: v,
+            label: capitalize(v),
+          }))}
           placeholder="Select possession"
         />
       </Grid>
@@ -326,7 +427,11 @@ export function PropertyFormFields({
 
       <SectionTitle>Compliance</SectionTitle>
       <Grid size={{ xs: 12, sm: 4 }}>
-        <FormSwitch name="isVerified" control={control} label="Verified Listing" />
+        <FormSwitch
+          name="isVerified"
+          control={control}
+          label="Verified Listing"
+        />
       </Grid>
       <Grid size={{ xs: 12, sm: 4 }}>
         <FormSwitch name="hasRera" control={control} label="RERA Registered" />
@@ -337,7 +442,10 @@ export function PropertyFormFields({
             name="reraId"
             control={control}
             label="RERA Status"
-            options={withLegacyOption(RERA_STATUS_OPTIONS, editingProperty?.reraId)}
+            options={withLegacyOption(
+              RERA_STATUS_OPTIONS,
+              editingProperty?.reraId,
+            )}
             placeholder="Select RERA status"
           />
         </Grid>
@@ -351,7 +459,7 @@ export function PropertyFormFields({
           render={({ field }) => (
             <FormGroup row sx={{ gap: 0.5 }}>
               {PROPERTY_AMENITIES.map((amenity) => {
-                const checked = field.value?.includes(amenity) ?? false
+                const checked = field.value?.includes(amenity) ?? false;
                 return (
                   <FormControlLabel
                     key={amenity}
@@ -362,14 +470,14 @@ export function PropertyFormFields({
                         onChange={(e) => {
                           const next = e.target.checked
                             ? [...(field.value ?? []), amenity]
-                            : (field.value ?? []).filter((a) => a !== amenity)
-                          field.onChange(next)
+                            : (field.value ?? []).filter((a) => a !== amenity);
+                          field.onChange(next);
                         }}
                       />
                     }
                     label={amenity}
                   />
-                )
+                );
               })}
             </FormGroup>
           )}
@@ -381,16 +489,34 @@ export function PropertyFormFields({
         <FormTextField control={control} name="ownerName" label="Owner Name" />
       </Grid>
       <Grid size={{ xs: 12, sm: 6 }}>
-        <FormTextField control={control} name="ownerPhone" label="Owner Phone" />
+        <FormTextField
+          control={control}
+          name="ownerPhone"
+          label="Owner Phone"
+        />
       </Grid>
       <Grid size={{ xs: 12, sm: 6 }}>
-        <FormTextField control={control} name="ownerEmail" label="Owner Email" />
+        <FormTextField
+          control={control}
+          name="ownerEmail"
+          label="Owner Email"
+        />
       </Grid>
       <Grid size={{ xs: 12, sm: 6 }}>
-        <FormTextField control={control} name="ownerAddress" label="Owner Address" />
+        <FormTextField
+          control={control}
+          name="ownerAddress"
+          label="Owner Address"
+        />
       </Grid>
       <Grid size={{ xs: 12 }}>
-        <FormTextField control={control} name="ownerNotes" label="Owner Notes" multiline rows={2} />
+        <FormTextField
+          control={control}
+          name="ownerNotes"
+          label="Owner Notes"
+          multiline
+          rows={2}
+        />
       </Grid>
 
       <SectionTitle>Photos</SectionTitle>
@@ -411,33 +537,53 @@ export function PropertyFormFields({
           sx={{
             p: 2,
             borderRadius: 2,
-            border: '1px solid',
-            borderColor: isDark ? alpha('#fff', 0.08) : '#E2E8F0',
-            bgcolor: isDark ? alpha('#fff', 0.03) : '#F8FAFC',
+            border: "1px solid",
+            borderColor: isDark ? alpha("#fff", 0.08) : "#E2E8F0",
+            bgcolor: isDark ? alpha("#fff", 0.03) : "#F8FAFC",
           }}
         >
-          <Typography variant="caption" color="text.secondary" fontWeight={700} letterSpacing="0.08em">
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            fontWeight={700}
+            letterSpacing="0.08em"
+          >
             LISTING TITLE
           </Typography>
           <Typography variant="subtitle2" fontWeight={700} mt={0.5} mb={1.5}>
-            {previewTitle || 'Select locality, sector, BHK and type to generate title'}
+            {previewTitle ||
+              "Select locality, sector, BHK and type to generate title"}
           </Typography>
-          <Typography variant="caption" color="text.secondary" fontWeight={700} letterSpacing="0.08em">
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            fontWeight={700}
+            letterSpacing="0.08em"
+          >
             ADDRESS
           </Typography>
           <Typography variant="body2" mb={1.5}>
-            {previewAddress || '—'}
+            {previewAddress || "—"}
           </Typography>
-          <Typography variant="caption" color="text.secondary" fontWeight={700} letterSpacing="0.08em">
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            fontWeight={700}
+            letterSpacing="0.08em"
+          >
             DESCRIPTION
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.55 }}>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ lineHeight: 1.55 }}
+          >
             {canPreview
               ? previewDescription
-              : 'Description is generated automatically from your selections for consistent SEO.'}
+              : "Description is generated automatically from your selections for consistent SEO."}
           </Typography>
         </Box>
       </Grid>
     </Grid>
-  )
+  );
 }
