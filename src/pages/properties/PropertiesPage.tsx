@@ -88,9 +88,9 @@ function propertyLabel(property: Property) {
   );
   const location = [property.locality || property.city, property.sector]
     .filter(Boolean)
-    .join(" Â· ");
+    .join(" · ");
   return location
-    ? `${bhkLabel(property.bedrooms)} ${typeLabel} Â· ${location}`
+    ? `${bhkLabel(property.bedrooms)} ${typeLabel} · ${location}`
     : `${bhkLabel(property.bedrooms)} ${typeLabel}`;
 }
 
@@ -182,9 +182,9 @@ export function PropertiesPage() {
     }) => {
       // For Plot properties, ensure required fields are provided for API call
       let payload: any = { ...formData };
-      
+
       // For Plot properties, make sure area, bedrooms and bathrooms are valid numbers (not undefined)
-      if (payload.type === 'PLOT') {
+      if (payload.type === "PLOT") {
         payload = {
           ...payload,
           area: payload.area ?? 0,
@@ -427,7 +427,7 @@ export function PropertiesPage() {
     <Box sx={{ flexGrow: 1, p: 2 }}>
       <PageHeader
         title="Properties"
-        subtitle="Manage listings â€” published to the website when Active and Available"
+        subtitle="Manage listings published to the website when Active and Available"
         breadcrumbs={[
           { label: "Home", href: "/dashboard" },
           { label: "Properties" },
