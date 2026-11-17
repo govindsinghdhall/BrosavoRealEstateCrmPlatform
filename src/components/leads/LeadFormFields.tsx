@@ -43,7 +43,7 @@ export function LeadFormFields({ control, leadSources, propertyTypeValue }: Lead
         <FormTextField name="lastName" control={control} label="Last Name" required />
       </Grid>
       <Grid size={{ xs: 12, sm: 6 }}>
-        <FormTextField name="email" control={control} label="Email" type="email" required />
+        <FormTextField name="email" control={control} label="Email" type="email" />
       </Grid>
       <Grid size={{ xs: 12, sm: 6 }}>
         <FormTextField name="phone" control={control} label="Phone" required />
